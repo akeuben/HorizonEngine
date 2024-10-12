@@ -1,0 +1,16 @@
+.{
+    .name = "engine",
+
+    .version = "0.0.0",
+
+    .dependencies = .{
+        .vulkan_zig = .{ .url = "https://github.com/Snektron/vulkan-zig/archive/06dae6c.tar.gz", .hash = "1220edeb3fc7dfc40e6fde705a108edce0a3cc76d165a7c9919d1fb037eccec43372" },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "engine",
+        "test",
+    },
+}

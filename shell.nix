@@ -15,10 +15,13 @@
 
         # Linux Rendering libraries
         xorg.libX11
+        xorg.libXcursor
         xorg.libXxf86vm
         xorg.libXrandr
         xorg.libXi
-        wayland
+        xorg.libXinerama
+        libGL
     ];
-}
 
+    VULKAN_REGISTRY = "${pkgs.vulkan-headers}/share/vulkan/registry/vk.xml";
+}
