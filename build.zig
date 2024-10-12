@@ -55,7 +55,7 @@ pub fn build(b: *std.Build) !void {
     const vkzig_bindings = get_vkzig_bindings(b, env);
 
     const lib = b.addStaticLibrary(.{
-        .name = "KappaEngine",
+        .name = "engine",
         .root_source_file = b.path("engine/root.zig"),
         .target = target,
         .optimize = optimize,
@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
-        .name = "Testing Executable",
+        .name = "test",
         .root_source_file = b.path("example/main.zig"),
         .target = target,
         .optimize = optimize,
