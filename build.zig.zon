@@ -5,6 +5,10 @@
 
     .dependencies = .{
         .vulkan_zig = .{ .url = "https://github.com/Snektron/vulkan-zig/archive/06dae6c.tar.gz", .hash = "1220edeb3fc7dfc40e6fde705a108edce0a3cc76d165a7c9919d1fb037eccec43372" },
+        .zgl = .{
+            .url = "https://github.com/ziglibs/zgl/archive/f170f34d1ed7a00aa6a2a00aafba40b661896010.tar.gz",
+            .hash = "12204115129438285a43d0a853d4d4bb86a63ab82b140189a47bc987f7b08d2252b0",
+        },
     },
 
     .paths = .{

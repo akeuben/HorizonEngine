@@ -2,5 +2,5 @@ const std = @import("std");
 const engine = @import("engine");
 
 pub fn main() !void {
-    _ = engine.testglfw();
+    _ = try engine.testglfw();
 }
