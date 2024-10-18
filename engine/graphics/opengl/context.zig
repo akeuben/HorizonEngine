@@ -13,13 +13,17 @@ fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLe
 }
 
 pub const OpenGLContext = struct {
-    pub fn init(_: OpenGLContext, window: Window) void {
-        gl.load(window, Window.get_gl_loader) catch {
+    pub fn init(window: *const Window) OpenGLContext {
+        const ctx = .{};
+        window.set_current_context(.{ .OPEN_GL = ctx });
+        gl.load(window.*, Window.get_gl_loader) catch {
             log.fatal("Failed to load gl extensions", .{});
         };
 
         gl.enable(gl.DEBUG_OUTPUT);
         gl.debugMessageCallback(gl_error_callback, null);
+
+        return ctx;
     }
 
     pub fn clear(_: OpenGLContext) void {

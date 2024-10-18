@@ -56,10 +56,7 @@ const Vertex = extern struct {
 
 pub fn main() !void {
     const window = w.create_window();
-    const context = c.create_context(.OPEN_GL);
-
-    window.set_current_context(context);
-    context.init(window);
+    const context = c.Context.init_open_gl(&window);
 
     const vs = try s.VertexShader.init(&context, vertex_shader_src);
     const fs = try s.FragmentShader.init(&context, fragment_shader_src);
@@ -84,6 +81,4 @@ pub fn main() !void {
 
         window.swap(context);
     }
-
-    pipeline.deinit();
 }
