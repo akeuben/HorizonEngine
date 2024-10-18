@@ -73,6 +73,8 @@ pub fn build(b: *std.Build) !void {
     const gl_output = gen_opengl_bindings.addOutputFileArg("gl.zig");
     gen_opengl_bindings.addArg(GL_VERSION);
 
+    const zm = b.dependency("zm", .{});
+
     const lib = b.addStaticLibrary(.{
         .name = "engine",
         .root_source_file = b.path("engine/root.zig"),
@@ -86,6 +88,7 @@ pub fn build(b: *std.Build) !void {
     lib.defineCMacro("_GLFW_X11", "1");
     lib.root_module.addAnonymousImport("platform", .{ .root_source_file = platform_output });
     lib.root_module.addAnonymousImport("gl", .{ .root_source_file = gl_output });
+    lib.root_module.addImport("zm", zm.module("zm"));
 
     lib.root_module.addImport("vulkan", vkzig_bindings);
     lib.linkSystemLibrary("Xcursor");

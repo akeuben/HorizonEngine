@@ -43,9 +43,10 @@ pub const DesktopWindow = struct {
     pub fn set_current_context(self: DesktopWindow, context: Context) void {
         switch (context) {
             .OPEN_GL => glfw.glfwMakeContextCurrent(self.window),
+            .NONE => {},
             else => {
                 log.fatal("Tried to switch to an unsupported context on Desktop window", .{});
-                std.process.exit(1);
+                unreachable;
             },
         }
     }
@@ -53,9 +54,10 @@ pub const DesktopWindow = struct {
     pub fn swap(self: DesktopWindow, context: Context) void {
         switch (context) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
+            .NONE => {},
             else => {
                 log.fatal("Tried to swap buffers of an unsupported context on Desktop window", .{});
-                std.process.exit(1);
+                unreachable;
             },
         }
     }

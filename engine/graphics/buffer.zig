@@ -3,16 +3,19 @@ const opengl = @import("opengl/buffer.zig");
 const vulkan = @import("vulkan/buffer.zig");
 const none = @import("none/buffer.zig");
 const log = @import("../utils/log.zig");
+const types = @import("type.zig");
 
 pub const VertexBuffer = union(context.API) {
     OPEN_GL: opengl.OpenGLVertexBuffer,
     VULKAN: vulkan.VulkanVertexBuffer,
     NONE: none.NoneVertexBuffer,
 
-    pub fn init(ctx: context.Context, comptime T: anytype, data: []const T) VertexBuffer {
-        return switch (ctx) {
+    pub fn init(ctx: *const context.Context, comptime T: anytype, data: []const T) types.ShaderTypeError!VertexBuffer {
+        return switch (ctx.*) {
             .OPEN_GL => VertexBuffer{
-                .OPEN_GL = opengl.OpenGLVertexBuffer.init(T, data),
+                .OPEN_GL = opengl.OpenGLVertexBuffer.init(T, data) catch |e| {
+                    return e;
+                },
             },
             .VULKAN => VertexBuffer{
                 .VULKAN = vulkan.VulkanVertexBuffer.init(),

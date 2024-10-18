@@ -1,9 +1,9 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs> {}, zig }:
   pkgs.mkShell {
     # nativeBuildInputs is usually what you want -- tools you need to run
     nativeBuildInputs = with pkgs; [ 
         # Build tools
-        zig
+        zig.packages.x86_64-linux.master
         dotnet-sdk_7
 
         # Vulkan

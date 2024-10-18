@@ -18,10 +18,11 @@ const LogLevel = enum(u8) {
     }
 };
 
-var log_level: LogLevel = .FATAL;
+var log_level: LogLevel = .ERROR;
 const stdout = std.io.getStdErr().writer();
 
 pub inline fn print(comptime level: LogLevel, format: []const u8, args: anytype) void {
+    if (@intFromEnum(level) < @intFromEnum(log_level)) return;
     stdout.print("[{s}] ", .{level.as_string()}) catch {
         std.process.exit(1);
     };
@@ -40,7 +41,7 @@ pub inline fn info(comptime format: []const u8, args: anytype) void {
     print(.INFO, format, args);
 }
 pub inline fn warn(comptime format: []const u8, args: anytype) void {
-    print(.WARN, format, args);
+    print(.WARNING, format, args);
 }
 pub inline fn err(comptime format: []const u8, args: anytype) void {
     print(.ERROR, format, args);
