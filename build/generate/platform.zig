@@ -13,7 +13,6 @@ pub fn main() !void {
 
     const output_file_path = args[2];
 
-    std.debug.print("file: '{s}\n", .{output_file_path});
     var output_file = std.fs.cwd().createFile(output_file_path, .{}) catch |err| {
         std.debug.print("unable to open '{s}': {s}\n", .{ output_file_path, @errorName(err) });
         std.process.exit(1);

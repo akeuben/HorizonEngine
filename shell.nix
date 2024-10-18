@@ -4,6 +4,7 @@
     nativeBuildInputs = with pkgs; [ 
         # Build tools
         zig
+        dotnet-sdk_7
 
         # Vulkan
         vulkan-tools 

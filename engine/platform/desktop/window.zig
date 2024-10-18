@@ -2,7 +2,8 @@ const std = @import("std");
 const glfw = @cImport({
     @cInclude("GLFW/glfw3.h");
 });
-const log = @import("../../log/log.zig");
+const log = @import("../../utils/log.zig");
+const Context = @import("../../graphics/context.zig").Context;
 
 fn error_callback(error_code: c_int, message: [*c]const u8) callconv(.C) void {
     log.debug("glfw - {}: {s}\n", .{ error_code, message });
@@ -39,15 +40,31 @@ pub const DesktopWindow = struct {
         glfw.glfwPollEvents();
     }
 
-    pub fn use_gl(self: DesktopWindow) void {
-        glfw.glfwMakeContextCurrent(self.window);
+    pub fn set_current_context(self: DesktopWindow, context: Context) void {
+        switch (context) {
+            .OPEN_GL => glfw.glfwMakeContextCurrent(self.window),
+            else => {
+                log.fatal("Tried to switch to an unsupported context on Desktop window", .{});
+                std.process.exit(1);
+            },
+        }
     }
 
-    pub fn swap_buffers_gl(self: DesktopWindow) void {
-        glfw.glfwSwapBuffers(self.window);
+    pub fn swap(self: DesktopWindow, context: Context) void {
+        switch (context) {
+            .OPEN_GL => glfw.glfwSwapBuffers(self.window),
+            else => {
+                log.fatal("Tried to swap buffers of an unsupported context on Desktop window", .{});
+                std.process.exit(1);
+            },
+        }
     }
 
     pub fn should_close(self: DesktopWindow) bool {
         return glfw.glfwWindowShouldClose(self.window) == glfw.GLFW_TRUE;
+    }
+
+    pub fn get_gl_loader(_: DesktopWindow, gl_extension: []const u8) ?*anyopaque {
+        return @ptrCast(@constCast(glfw.glfwGetProcAddress(gl_extension.ptr)));
     }
 };

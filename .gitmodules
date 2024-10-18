@@ -4,3 +4,6 @@
 [submodule "lib/glfw"]
 	path = lib/glfw
 	url = https://github.com/glfw/glfw
+[submodule "lib/zig-opengl"]
+	path = lib/zig-opengl
+	url = https://github.com/MasterQ32/zig-opengl.git

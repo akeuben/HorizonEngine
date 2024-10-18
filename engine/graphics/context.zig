@@ -1,11 +1,34 @@
 const opengl = @import("opengl/context.zig");
 const vulkan = @import("vulkan/context.zig");
-const api = @import("api.zig");
+const OpenGLContext = @import("opengl/context.zig").OpenGLContext;
+const VulkanContext = @import("vulkan/context.zig").VulkanContext;
+const NoneContext = @import("none/context.zig").NoneContext;
+const Window = @import("../platform/window.zig").Window;
 
-pub fn swap_buffers() !void {
-    switch (api.get_api()) {
-        .NONE => return api.APIError.API_NOT_IMPLEMENTED,
-        .VULKAN => return vulkan.swap_buffers(),
-        .OPEN_GL => return opengl.swap_buffers(),
+pub const API = enum { OPEN_GL, VULKAN, NONE };
+
+pub const Context = union(API) {
+    OPEN_GL: OpenGLContext,
+    VULKAN: VulkanContext,
+    NONE: NoneContext,
+
+    pub fn init(self: Context, window: Window) void {
+        switch (self) {
+            inline else => |case| case.init(window),
+        }
     }
+
+    pub fn clear(self: Context) void {
+        switch (self) {
+            inline else => |case| case.clear(),
+        }
+    }
+};
+
+pub fn create_context(context_api: API) Context {
+    return switch (context_api) {
+        .OPEN_GL => Context{ .OPEN_GL = .{} },
+        .VULKAN => Context{ .VULKAN = .{} },
+        .NONE => Context{ .NONE = .{} },
+    };
 }

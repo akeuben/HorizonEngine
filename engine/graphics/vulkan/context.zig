@@ -1,5 +1,10 @@
-const std = @import("std");
+const log = @import("../../utils/log.zig");
+const Window = @import("../../platform/window.zig").Window;
 
-pub fn swap_buffers() void {
-    std.debug.print("Vulkan swap\n", .{});
-}
+pub const VulkanContext = struct {
+    pub fn init(_: VulkanContext, _: Window) void {
+        log.fatal("Method stub", .{});
+    }
+
+    pub fn clear(_: VulkanContext) void {}
+};

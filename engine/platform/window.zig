@@ -1,10 +1,10 @@
 const std = @import("std");
 const platform = @import("platform");
 const DesktopWindow = @import("desktop/window.zig").DesktopWindow;
-const log = @import("../log/log.zig");
-const api = @import("../graphics/api.zig");
+const log = @import("../utils/log.zig");
+const Context = @import("../graphics/context.zig").Context;
 
-const WindowError = error{ UnsupportedPlatform, IncorrectAPI };
+const WindowError = error{UnsupportedPlatform};
 
 pub const Window = union(enum) {
     desktop: DesktopWindow,
@@ -21,27 +21,27 @@ pub const Window = union(enum) {
         }
     }
 
-    pub fn use_gl(self: Window) !void {
-        if (api.get_api() != api.API.OPEN_GL) {
-            return WindowError.IncorrectAPI;
-        }
+    pub fn set_current_context(self: Window, context: Context) void {
         switch (self) {
-            inline else => |case| case.use_gl(),
+            inline else => |case| case.set_current_context(context),
         }
     }
 
-    pub fn swap_buffers_gl(self: Window) !void {
-        if (api.get_api() != api.API.OPEN_GL) {
-            return WindowError.IncorrectAPI;
-        }
+    pub fn swap(self: Window, context: Context) void {
         switch (self) {
-            inline else => |case| case.swap_buffers_gl(),
+            inline else => |case| case.swap(context),
         }
     }
 
     pub fn should_close(self: Window) bool {
         return switch (self) {
             inline else => |case| case.should_close(),
+        };
+    }
+
+    pub fn get_gl_loader(self: Window, gl_extension: []const u8) ?*anyopaque {
+        return switch (self) {
+            inline else => |case| case.get_gl_loader(gl_extension),
         };
     }
 };

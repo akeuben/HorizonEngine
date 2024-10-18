@@ -1,6 +1,8 @@
 const std = @import("std");
 const Platform = enum { LINUX, NONE };
 
+const GL_VERSION = "GL_VERSION_4_3";
+
 fn get_vkzig_bindings(b: *std.Build, env: std.process.EnvMap) *std.Build.Module {
     const vkzig_dep = b.dependency("vulkan_zig", .{
         .registry = @as([]const u8, b.pathFromRoot(env.get("VULKAN_REGISTRY").?)),
@@ -54,20 +56,22 @@ pub fn build(b: *std.Build) !void {
     defer env.deinit();
 
     const vkzig_bindings = get_vkzig_bindings(b, env);
-    const zgl = b.dependency("zgl", .{
-        .target = target,
-        .optimize = optimize,
-    });
 
-    const tool = b.addExecutable(.{
+    const platform_generator = b.addExecutable(.{
         .name = "generate_struct",
         .root_source_file = b.path("build/generate/platform.zig"),
         .target = b.host,
     });
 
-    const tool_step = b.addRunArtifact(tool);
-    tool_step.addArg(@tagName(target.result.os.tag));
-    const output = tool_step.addOutputFileArg("platform.zig");
+    const platform_generator_step = b.addRunArtifact(platform_generator);
+    platform_generator_step.addArg(@tagName(target.result.os.tag));
+    const platform_output = platform_generator_step.addOutputFileArg("platform.zig");
+
+    const gen_opengl_bindings = b.addSystemCommand(&[_][]const u8{ "dotnet", "run", "--project", "lib/zig-opengl" });
+
+    gen_opengl_bindings.addArg("lib/zig-opengl/OpenGL-Registry/xml/gl.xml");
+    const gl_output = gen_opengl_bindings.addOutputFileArg("gl.zig");
+    gen_opengl_bindings.addArg(GL_VERSION);
 
     const lib = b.addStaticLibrary(.{
         .name = "engine",
@@ -80,16 +84,16 @@ pub fn build(b: *std.Build) !void {
     lib.addCSourceFiles(.{ .files = glfw_files });
     lib.addCSourceFiles(.{ .files = glfw_linux_files });
     lib.defineCMacro("_GLFW_X11", "1");
-    lib.root_module.addAnonymousImport("platform", .{ .root_source_file = output });
+    lib.root_module.addAnonymousImport("platform", .{ .root_source_file = platform_output });
+    lib.root_module.addAnonymousImport("gl", .{ .root_source_file = gl_output });
 
     lib.root_module.addImport("vulkan", vkzig_bindings);
-    lib.root_module.addImport("zgl", zgl.module("zgl"));
     lib.linkSystemLibrary("Xcursor");
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
-        .name = "test",
-        .root_source_file = b.path("example/main.zig"),
+        .name = "engine_runtime",
+        .root_source_file = b.path("runtime/main.zig"),
         .target = target,
         .optimize = optimize,
     });
