@@ -10,9 +10,9 @@ pub const Context = union(API) {
     VULKAN: vulkan.VulkanContext,
     NONE: none.NoneContext,
 
-    pub fn init_open_gl(window: *const Window) Context {
+    pub fn init_open_gl() Context {
         return Context{
-            .OPEN_GL = opengl.OpenGLContext.init(window),
+            .OPEN_GL = opengl.OpenGLContext.init(),
         };
     }
 
@@ -26,6 +26,20 @@ pub const Context = union(API) {
         return Context{
             .NONE = none.NoneContext.init(),
         };
+    }
+
+    pub fn deinit(self: Context) void {
+        switch (self) {
+            inline else => |case| case.deinit(),
+        }
+    }
+
+    pub fn load(self: *Context, window: *const Window) void {
+        switch (self.*) {
+            .OPEN_GL => opengl.OpenGLContext.load(&self.OPEN_GL, window),
+            .VULKAN => vulkan.VulkanContext.load(&self.VULKAN, window),
+            .NONE => none.NoneContext.load(&self.NONE, window),
+        }
     }
 
     pub fn clear(self: Context) void {

@@ -55,8 +55,12 @@ const Vertex = extern struct {
 };
 
 pub fn main() !void {
-    const window = w.create_window();
-    const context = c.Context.init_open_gl(&window);
+    log.set_level(.DEBUG);
+    var context = c.Context.init_vulkan();
+    defer context.deinit();
+
+    const window = w.create_window(&context);
+    context.load(&window);
 
     const vs = try s.VertexShader.init(&context, vertex_shader_src);
     const fs = try s.FragmentShader.init(&context, fragment_shader_src);

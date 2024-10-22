@@ -51,11 +51,7 @@ pub fn build(b: *std.Build) !void {
         "lib/glfw/src/linux_joystick.c",
     };
 
-    const allocator = std.heap.page_allocator;
-    var env = try std.process.getEnvMap(allocator);
-    defer env.deinit();
-
-    const vkzig_bindings = get_vkzig_bindings(b, env);
+    const vkzig_bindings = get_vkzig_bindings(b, try std.process.getEnvMap(b.allocator));
 
     const platform_generator = b.addExecutable(.{
         .name = "generate_struct",

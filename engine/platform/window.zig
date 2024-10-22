@@ -3,16 +3,25 @@ const platform = @import("platform");
 const DesktopWindow = @import("desktop/window.zig").DesktopWindow;
 const log = @import("../utils/log.zig");
 const Context = @import("../graphics/context.zig").Context;
+const VulkanExtension = @import("../graphics/vulkan/extension.zig").VulkanExtension;
+const vk = @import("vulkan");
+const VulkanContext = @import("../graphics/vulkan/context.zig").VulkanContext;
 
 const WindowError = error{UnsupportedPlatform};
 
 pub const Window = union(enum) {
     desktop: DesktopWindow,
 
-    pub fn set_width(self: Window, width: i32) void {
+    pub fn set_size_screenspace(self: Window, width: i32, height: i32) void {
         switch (self) {
-            inline else => |case| case.set_width(width),
+            inline else => |case| case.set_width(width, height),
         }
+    }
+
+    pub fn get_size_pixels(self: Window) @Vector(2, i32) {
+        return switch (self) {
+            inline else => |case| case.get_size_pixels(),
+        };
     }
 
     pub fn update(self: Window) void {
@@ -44,13 +53,31 @@ pub const Window = union(enum) {
             inline else => |case| case.get_gl_loader(gl_extension),
         };
     }
+
+    pub fn get_proc_addr_fn(self: Window) *const anyopaque {
+        return switch (self) {
+            inline else => |case| case.get_proc_addr_fn(),
+        };
+    }
+
+    pub fn get_vk_exts(self: Window) []VulkanExtension {
+        return switch (self) {
+            inline else => |case| case.get_vk_exts(),
+        };
+    }
+
+    pub fn create_vk_surface(self: Window, ctx: *const VulkanContext) vk.SurfaceKHR {
+        return switch (self) {
+            inline else => |case| case.create_vk_surface(ctx),
+        };
+    }
 };
 
 var initialized = false;
 
-pub fn create_window() Window {
+pub fn create_window(context: *const Context) Window {
     if (!initialized) {
-        switch (platform.get_platform()) {
+        switch (comptime platform.get_platform()) {
             .LINUX => DesktopWindow.init(),
             .WINDOWS => DesktopWindow.init(),
             else => {
@@ -60,9 +87,9 @@ pub fn create_window() Window {
         }
         initialized = true;
     }
-    return switch (platform.get_platform()) {
-        .LINUX => .{ .desktop = DesktopWindow.create_window() },
-        .WINDOWS => .{ .desktop = DesktopWindow.create_window() },
+    return switch (comptime platform.get_platform()) {
+        .LINUX => .{ .desktop = DesktopWindow.create_window(context) },
+        .WINDOWS => .{ .desktop = DesktopWindow.create_window(context) },
         else => {
             log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(platform.get_platform())});
             std.process.exit(1);
