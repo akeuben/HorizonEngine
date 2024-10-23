@@ -99,6 +99,15 @@ pub const Pipeline = union(context.API) {
         };
     }
 
+    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8) ShaderError!Pipeline {
+        const vertex_shader = try VertexShader.init(ctx, name);
+        defer vertex_shader.deinit();
+        const fragment_shader = try FragmentShader.init(ctx, name);
+        defer fragment_shader.deinit();
+
+        return Pipeline.init(ctx, &vertex_shader, &fragment_shader);
+    }
+
     pub fn deinit(self: Pipeline) void {
         switch (self) {
             inline else => |case| case.deinit(),

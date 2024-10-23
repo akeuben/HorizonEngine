@@ -40,18 +40,13 @@ pub fn main() !void {
     const window = w.create_window(&context);
     context.load(&window);
 
-    const vs = try s.VertexShader.init(&context, "basic");
-    const fs = try s.FragmentShader.init(&context, "basic");
-    const pipeline = try s.Pipeline.init(&context, &vs, &fs);
+    const pipeline = try s.Pipeline.init_inline(&context, "basic");
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
     const triangle = o.RenderObject.init(&context, &triangle_buffer, &pipeline);
 
     const square_buffer = try b.VertexBuffer.init(&context, Vertex, square_vertices);
     const square = o.RenderObject.init(&context, &square_buffer, &pipeline);
-
-    vs.deinit();
-    fs.deinit();
 
     while (!window.should_close()) {
         window.update();
