@@ -3,6 +3,8 @@ const Platform = enum { LINUX, NONE };
 
 const GL_VERSION = "GL_VERSION_4_3";
 
+const GL_EXTENSIONS: []const []const u8 = &.{"GL_ARB_gl_spirv"};
+
 fn get_vkzig_bindings(b: *std.Build, env: std.process.EnvMap) *std.Build.Module {
     const vkzig_dep = b.dependency("vulkan_zig", .{
         .registry = @as([]const u8, b.pathFromRoot(env.get("VULKAN_REGISTRY").?)),
@@ -68,6 +70,7 @@ pub fn build(b: *std.Build) !void {
     gen_opengl_bindings.addArg("lib/zig-opengl/OpenGL-Registry/xml/gl.xml");
     const gl_output = gen_opengl_bindings.addOutputFileArg("gl.zig");
     gen_opengl_bindings.addArg(GL_VERSION);
+    gen_opengl_bindings.addArgs(GL_EXTENSIONS);
 
     const zm = b.dependency("zm", .{});
 

@@ -27,28 +27,6 @@ const square_vertices: []const Vertex = &[_]Vertex{
     .{ .position = .{ 0.75, 0.75 }, .color = .{ 0.0, 1.0, 1.0 } },
 };
 
-const vertex_shader_src: []const u8 =
-    \\#version 330 core
-    \\layout (location = 0) in vec2 aPos;
-    \\layout (location = 1) in vec3 aColor;
-    \\out vec3 bColor;
-    \\
-    \\void main() {
-    \\  gl_Position = vec4(aPos, 0.0, 1.0);
-    \\  bColor = aColor;
-    \\}
-;
-
-const fragment_shader_src: []const u8 =
-    \\#version 330 core
-    \\in vec3 bColor;
-    \\out vec4 FragColor;
-    \\
-    \\void main() {
-    \\  FragColor = vec4(bColor, 1.0f);
-    \\}
-;
-
 const Vertex = extern struct {
     position: zm.Vec2f,
     color: zm.Vec3f,
@@ -56,14 +34,14 @@ const Vertex = extern struct {
 
 pub fn main() !void {
     log.set_level(.DEBUG);
-    var context = c.Context.init_vulkan();
+    var context = c.Context.init_open_gl();
     defer context.deinit();
 
     const window = w.create_window(&context);
     context.load(&window);
 
-    const vs = try s.VertexShader.init(&context, vertex_shader_src);
-    const fs = try s.FragmentShader.init(&context, fragment_shader_src);
+    const vs = try s.VertexShader.init(&context, "basic");
+    const fs = try s.FragmentShader.init(&context, "basic");
     const pipeline = try s.Pipeline.init(&context, &vs, &fs);
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);

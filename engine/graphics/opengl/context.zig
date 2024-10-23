@@ -25,7 +25,10 @@ pub const OpenGLContext = struct {
         window.set_current_context(.{ .OPEN_GL = self.* });
 
         gl.load(window.*, Window.get_gl_loader) catch {
-            log.fatal("Failed to load gl extensions", .{});
+            log.fatal("Failed to load gl", .{});
+        };
+        gl.GL_ARB_gl_spirv.load(window.*, Window.get_gl_loader) catch {
+            log.fatal("Fauled to load gl extension GL_ARB_gl_spirv. Does your system support it?", .{});
         };
 
         gl.enable(gl.DEBUG_OUTPUT);

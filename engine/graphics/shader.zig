@@ -1,3 +1,4 @@
+const std = @import("std");
 const context = @import("context.zig");
 const opengl = @import("opengl/shader.zig");
 const vulkan = @import("vulkan/shader.zig");
@@ -6,15 +7,27 @@ const log = @import("../utils/log.zig");
 
 pub const ShaderError = error{ CompilationError, LinkingError };
 
+fn read_shader_file(comptime path: []const u8) ![]const u8 {
+    var file = try std.fs.cwd().openFile("assets/" ++ path, .{});
+    defer file.close();
+
+    const data = try file.readToEndAlloc(std.heap.page_allocator, 65536);
+    log.debug("Loaded shader file of size: {}", .{data.len});
+    return data;
+}
+
 pub const VertexShader = union(context.API) {
     OPEN_GL: opengl.OpenGLVertexShader,
     VULKAN: vulkan.VulkanVertexShader,
     NONE: none.NoneVertexShader,
 
-    pub fn init(ctx: *const context.Context, src: []const u8) ShaderError!VertexShader {
+    pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!VertexShader {
+        const shader_data = read_shader_file(name ++ ".vert.spv") catch return ShaderError.CompilationError;
+        defer std.heap.page_allocator.free(shader_data);
+
         return switch (ctx.*) {
             .OPEN_GL => VertexShader{
-                .OPEN_GL = opengl.OpenGLVertexShader.init(src) catch {
+                .OPEN_GL = opengl.OpenGLVertexShader.init(shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },
@@ -39,10 +52,13 @@ pub const FragmentShader = union(context.API) {
     VULKAN: vulkan.VulkanFragmentShader,
     NONE: none.NoneFragmentShader,
 
-    pub fn init(ctx: *const context.Context, src: []const u8) ShaderError!FragmentShader {
+    pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!FragmentShader {
+        const shader_data = read_shader_file(name ++ ".frag.spv") catch return ShaderError.CompilationError;
+        defer std.heap.page_allocator.free(shader_data);
+
         return switch (ctx.*) {
             .OPEN_GL => FragmentShader{
-                .OPEN_GL = opengl.OpenGLFragmentShader.init(src) catch {
+                .OPEN_GL = opengl.OpenGLFragmentShader.init(shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },

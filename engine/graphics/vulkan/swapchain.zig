@@ -74,6 +74,7 @@ fn choose_swap_extent(window: *const Window, capabilities: *const vk.SurfaceCapa
 pub const Swapchain = struct {
     swapchain: vk.SwapchainKHR,
     images: []vk.Image,
+    image_views: []vk.ImageView,
     format: vk.Format,
     extent: vk.Extent2D,
     allocator: std.mem.Allocator,
@@ -132,16 +133,44 @@ pub const Swapchain = struct {
 
         const images = try ctx.logical_device.device.getSwapchainImagesAllocKHR(swapchain, allocator);
 
+        const image_views = try allocator.alloc(vk.ImageView, images.len);
+        for (images, 0..) |image, i| {
+            const view_create_info: vk.ImageViewCreateInfo = .{
+                .image = image,
+                .view_type = .@"2d",
+                .format = format.format,
+                .components = .{
+                    .r = .identity,
+                    .g = .identity,
+                    .b = .identity,
+                    .a = .identity,
+                },
+                .subresource_range = .{
+                    .aspect_mask = .{ .color_bit = true },
+                    .base_mip_level = 0,
+                    .level_count = 1,
+                    .base_array_layer = 0,
+                    .layer_count = 1,
+                },
+            };
+            image_views[i] = try ctx.logical_device.device.createImageView(&view_create_info, null);
+        }
+
         return Swapchain{
             .swapchain = swapchain,
             .images = images,
             .format = format.format,
             .extent = extent,
+            .image_views = image_views,
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: Swapchain, ctx: *const context.VulkanContext) void {
+        for (self.image_views) |view| {
+            ctx.logical_device.device.destroyImageView(view, null);
+        }
+        self.allocator.free(self.image_views);
         self.allocator.free(self.images);
         ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
     }

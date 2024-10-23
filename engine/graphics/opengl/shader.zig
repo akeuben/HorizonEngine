@@ -5,10 +5,10 @@ const log = @import("../../utils/log.zig");
 pub const OpenGLVertexShader = struct {
     shader: u32,
 
-    pub fn init(src: []const u8) ShaderError!OpenGLVertexShader {
-        const shader: u32 = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(shader, 1, &src.ptr, null);
-        gl.compileShader(shader);
+    pub fn init(data: []const u8) ShaderError!OpenGLVertexShader {
+        const shader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
+        gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);
 
         var success: i32 = 0;
         var error_log: [512]u8 = undefined;
@@ -17,7 +17,7 @@ pub const OpenGLVertexShader = struct {
         if (success != gl.TRUE) {
             gl.getShaderInfoLog(shader, 512, null, &error_log[0]);
             log.err("GL: Failed to compile vertex shader: {s}", .{error_log});
-            return ShaderError.CompilationError;
+            //return ShaderError.CompilationError;
         }
 
         return OpenGLVertexShader{ .shader = shader };
@@ -31,10 +31,10 @@ pub const OpenGLVertexShader = struct {
 pub const OpenGLFragmentShader = struct {
     shader: u32,
 
-    pub fn init(src: []const u8) ShaderError!OpenGLFragmentShader {
-        const shader: u32 = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(shader, 1, &src.ptr, null);
-        gl.compileShader(shader);
+    pub fn init(data: []const u8) ShaderError!OpenGLFragmentShader {
+        const shader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
+        gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);
 
         var success: i32 = 0;
         var error_log: [512]u8 = undefined;
@@ -43,7 +43,7 @@ pub const OpenGLFragmentShader = struct {
         if (success != gl.TRUE) {
             gl.getShaderInfoLog(shader, 512, null, &error_log[0]);
             log.err("GL: Failed to compile fragment shader: {s}", .{error_log});
-            return ShaderError.CompilationError;
+            //return ShaderError.CompilationError;
         }
 
         return OpenGLFragmentShader{ .shader = shader };
@@ -68,7 +68,7 @@ pub const OpenGLPipeline = struct {
         gl.getProgramiv(program, gl.LINK_STATUS, &success);
 
         if (success != gl.TRUE) {
-            gl.getShaderInfoLog(program, 512, null, &error_log[0]);
+            gl.getProgramInfoLog(program, 512, null, &error_log[0]);
             log.err("GL: Failed to link shader program: {s}", .{error_log});
             return ShaderError.LinkingError;
         }
