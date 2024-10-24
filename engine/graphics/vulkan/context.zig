@@ -9,6 +9,8 @@ const device = @import("device.zig");
 const validation = @import("validation.zig");
 const queue = @import("queue.zig");
 const swapchain = @import("swapchain.zig");
+const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
+const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 
 const apis: []const vk.ApiInfo = &.{
     vk.features.version_1_0,
@@ -106,6 +108,8 @@ pub const VulkanContext = struct {
         log.debug("Created swapchain", .{});
     }
     pub fn clear(_: VulkanContext) void {}
+    pub fn render(_: VulkanContext, _: VulkanPipeline, _: VulkanVertexBuffer) void {}
+    pub fn flush(_: VulkanContext) void {}
 
     pub fn deinit(self: VulkanContext) void {
         self.swapchain.deinit(&self);

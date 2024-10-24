@@ -1,6 +1,8 @@
 const Window = @import("../../platform/window.zig").Window;
 const gl = @import("gl");
 const log = @import("../../utils/log.zig");
+const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
+const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
     return switch (severity) {
@@ -35,8 +37,16 @@ pub const OpenGLContext = struct {
         gl.debugMessageCallback(gl_error_callback, null);
     }
 
+    pub fn render(_: OpenGLContext, pipeline: OpenGLPipeline, buffer: OpenGLVertexBuffer) void {
+        pipeline.bind();
+        buffer.bind();
+        gl.drawArrays(gl.TRIANGLES, 0, @intCast(buffer.layout.length));
+    }
+
     pub fn clear(_: OpenGLContext) void {
         gl.clearColor(0.02, 0.55, 0.40, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
+
+    pub fn flush(_: OpenGLContext) void {}
 };

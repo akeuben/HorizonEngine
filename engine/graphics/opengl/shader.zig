@@ -1,6 +1,7 @@
 const gl = @import("gl");
 const ShaderError = @import("../shader.zig").ShaderError;
 const log = @import("../../utils/log.zig");
+const BufferLayout = @import("../type.zig").BufferLayout;
 
 pub const OpenGLVertexShader = struct {
     shader: u32,
@@ -55,9 +56,10 @@ pub const OpenGLFragmentShader = struct {
 };
 
 pub const OpenGLPipeline = struct {
+    gl_array: u32,
     program: u32,
 
-    pub fn init(vertex_shader: *const OpenGLVertexShader, fragment_shader: *const OpenGLFragmentShader) ShaderError!OpenGLPipeline {
+    pub fn init(vertex_shader: *const OpenGLVertexShader, fragment_shader: *const OpenGLFragmentShader, buffer_layout: *const BufferLayout) ShaderError!OpenGLPipeline {
         const program: u32 = gl.createProgram();
         gl.attachShader(program, vertex_shader.shader);
         gl.attachShader(program, fragment_shader.shader);
@@ -73,8 +75,19 @@ pub const OpenGLPipeline = struct {
             return ShaderError.LinkingError;
         }
 
+        // Create associated VAO
+        var gl_array: u32 = 0;
+        gl.genVertexArrays(1, &gl_array);
+
+        for (buffer_layout.elements, 0..) |element, i| {
+            gl.vertexAttribPointer(@intCast(i), @intCast(element.length), gl.FLOAT, gl.FALSE, @intCast(buffer_layout.size), @ptrFromInt(element.offset));
+            gl.enableVertexAttribArray(@intCast(i));
+        }
+        gl.disableVertexAttribArray(0);
+
         return OpenGLPipeline{
             .program = program,
+            .gl_array = gl_array,
         };
     }
 
@@ -83,6 +96,7 @@ pub const OpenGLPipeline = struct {
     }
 
     pub fn bind(self: OpenGLPipeline) void {
+        gl.bindVertexArray(self.gl_array);
         gl.useProgram(self.program);
     }
 };

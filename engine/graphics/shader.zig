@@ -4,6 +4,7 @@ const opengl = @import("opengl/shader.zig");
 const vulkan = @import("vulkan/shader.zig");
 const none = @import("none/shader.zig");
 const log = @import("../utils/log.zig");
+const BufferLayout = @import("type.zig").BufferLayout;
 
 pub const ShaderError = error{ CompilationError, LinkingError };
 
@@ -32,7 +33,9 @@ pub const VertexShader = union(context.API) {
                 },
             },
             .VULKAN => VertexShader{
-                .VULKAN = vulkan.VulkanVertexShader.init(),
+                .VULKAN = vulkan.VulkanVertexShader.init(&ctx.VULKAN, shader_data) catch {
+                    return ShaderError.CompilationError;
+                },
             },
             .NONE => VertexShader{
                 .NONE = none.NoneVertexShader.init(),
@@ -63,7 +66,9 @@ pub const FragmentShader = union(context.API) {
                 },
             },
             .VULKAN => FragmentShader{
-                .VULKAN = vulkan.VulkanFragmentShader.init(),
+                .VULKAN = vulkan.VulkanFragmentShader.init(&ctx.VULKAN, shader_data) catch {
+                    return ShaderError.CompilationError;
+                },
             },
             .NONE => FragmentShader{
                 .NONE = none.NoneFragmentShader.init(),
@@ -83,15 +88,17 @@ pub const Pipeline = union(context.API) {
     VULKAN: vulkan.VulkanPipeline,
     NONE: none.NonePipeline,
 
-    pub fn init(ctx: *const context.Context, vertex_shader: *const VertexShader, fragment_shader: *const FragmentShader) ShaderError!Pipeline {
+    pub fn init(ctx: *const context.Context, vertex_shader: *const VertexShader, fragment_shader: *const FragmentShader, buffer_layout: *const BufferLayout) ShaderError!Pipeline {
         return switch (ctx.*) {
             .OPEN_GL => Pipeline{
-                .OPEN_GL = opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL) catch {
+                .OPEN_GL = opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL, buffer_layout) catch {
                     return ShaderError.LinkingError;
                 },
             },
             .VULKAN => Pipeline{
-                .VULKAN = vulkan.VulkanPipeline.init(),
+                .VULKAN = vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN) catch {
+                    return ShaderError.LinkingError;
+                },
             },
             .NONE => Pipeline{
                 .NONE = none.NonePipeline.init(),
@@ -99,13 +106,13 @@ pub const Pipeline = union(context.API) {
         };
     }
 
-    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8) ShaderError!Pipeline {
+    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8, layout: *const BufferLayout) ShaderError!Pipeline {
         const vertex_shader = try VertexShader.init(ctx, name);
         defer vertex_shader.deinit();
         const fragment_shader = try FragmentShader.init(ctx, name);
         defer fragment_shader.deinit();
 
-        return Pipeline.init(ctx, &vertex_shader, &fragment_shader);
+        return Pipeline.init(ctx, &vertex_shader, &fragment_shader, layout);
     }
 
     pub fn deinit(self: Pipeline) void {

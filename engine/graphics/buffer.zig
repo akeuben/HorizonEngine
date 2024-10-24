@@ -43,4 +43,10 @@ pub const VertexBuffer = union(context.API) {
             inline else => |case| case.unbind(),
         }
     }
+
+    pub fn get_layout(self: VertexBuffer) types.BufferLayout {
+        return switch (self) {
+            inline else => |case| case.get_layout(),
+        };
+    }
 };

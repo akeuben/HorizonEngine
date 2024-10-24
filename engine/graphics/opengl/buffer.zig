@@ -65,4 +65,8 @@ pub const OpenGLVertexBuffer = struct {
     pub inline fn unbind(_: OpenGLVertexBuffer) void {
         gl.bindBuffer(gl.ARRAY_BUFFER, 0);
     }
+
+    pub fn get_layout(self: OpenGLVertexBuffer) types.BufferLayout {
+        return self.layout;
+    }
 };

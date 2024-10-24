@@ -6,7 +6,6 @@ const w = engine.platform.window;
 const types = engine.graphics.types;
 const c = engine.graphics.context;
 const b = engine.graphics.buffer;
-const o = engine.graphics.object;
 const s = engine.graphics.shader;
 const log = engine.log;
 const gl = engine.gl;
@@ -40,22 +39,16 @@ pub fn main() !void {
     const window = w.create_window(&context);
     context.load(&window);
 
-    const pipeline = try s.Pipeline.init_inline(&context, "basic");
-
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
-    const triangle = o.RenderObject.init(&context, &triangle_buffer, &pipeline);
-
-    const square_buffer = try b.VertexBuffer.init(&context, Vertex, square_vertices);
-    const square = o.RenderObject.init(&context, &square_buffer, &pipeline);
+    const triangle_pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout());
 
     while (!window.should_close()) {
-        window.update();
-
         context.clear();
 
-        triangle.render();
-        square.render();
+        context.render(triangle_pipeline, triangle_buffer);
 
+        context.flush();
         window.swap(context);
+        window.update();
     }
 }
