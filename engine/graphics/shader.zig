@@ -5,11 +5,15 @@ const vulkan = @import("vulkan/shader.zig");
 const none = @import("none/shader.zig");
 const log = @import("../utils/log.zig");
 const BufferLayout = @import("type.zig").BufferLayout;
+const RenderTarget = @import("target.zig").RenderTarget;
 
 pub const ShaderError = error{ CompilationError, LinkingError };
 
 fn read_shader_file(comptime path: []const u8) ![]const u8 {
-    var file = try std.fs.cwd().openFile("assets/" ++ path, .{});
+    var file = std.fs.cwd().openFile("assets/" ++ path, .{}) catch {
+        log.err("Failed to open shader: {s}", .{try std.fs.cwd().realpathAlloc(std.heap.page_allocator, ".")});
+        return undefined;
+    };
     defer file.close();
 
     const data = try file.readToEndAlloc(std.heap.page_allocator, 65536);
@@ -88,7 +92,7 @@ pub const Pipeline = union(context.API) {
     VULKAN: vulkan.VulkanPipeline,
     NONE: none.NonePipeline,
 
-    pub fn init(ctx: *const context.Context, vertex_shader: *const VertexShader, fragment_shader: *const FragmentShader, buffer_layout: *const BufferLayout) ShaderError!Pipeline {
+    pub fn init(ctx: *const context.Context, vertex_shader: *const VertexShader, fragment_shader: *const FragmentShader, buffer_layout: *const BufferLayout, target: *const RenderTarget) ShaderError!Pipeline {
         return switch (ctx.*) {
             .OPEN_GL => Pipeline{
                 .OPEN_GL = opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL, buffer_layout) catch {
@@ -96,7 +100,7 @@ pub const Pipeline = union(context.API) {
                 },
             },
             .VULKAN => Pipeline{
-                .VULKAN = vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN) catch {
+                .VULKAN = vulkan.VulkanPipeline.init(&ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &target.VULKAN) catch {
                     return ShaderError.LinkingError;
                 },
             },
@@ -106,13 +110,13 @@ pub const Pipeline = union(context.API) {
         };
     }
 
-    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8, layout: *const BufferLayout) ShaderError!Pipeline {
+    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8, buffer_layout: *const BufferLayout, target: *const RenderTarget) ShaderError!Pipeline {
         const vertex_shader = try VertexShader.init(ctx, name);
         defer vertex_shader.deinit();
         const fragment_shader = try FragmentShader.init(ctx, name);
         defer fragment_shader.deinit();
 
-        return Pipeline.init(ctx, &vertex_shader, &fragment_shader, layout);
+        return Pipeline.init(ctx, &vertex_shader, &fragment_shader, buffer_layout, target);
     }
 
     pub fn deinit(self: Pipeline) void {

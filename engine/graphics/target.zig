@@ -1,0 +1,66 @@
+const opengl = @import("opengl/target.zig");
+const vulkan = @import("vulkan/target.zig");
+const none = @import("none/target.zig");
+const context = @import("context.zig");
+const VertexBuffer = @import("buffer.zig").VertexBuffer;
+const Pipeline = @import("shader.zig").Pipeline;
+const log = @import("../utils/log.zig");
+
+pub const RenderTarget = union(context.API) {
+    OPEN_GL: opengl.OpenGLRenderTarget,
+    VULKAN: vulkan.VulkanRenderTarget,
+    NONE: none.NoneRenderTarget,
+
+    pub fn init(ctx: *const context.Context) RenderTarget {
+        return switch (ctx.*) {
+            .OPEN_GL => RenderTarget{
+                .OPEN_GL = opengl.OpenGLRenderTarget.init(),
+            },
+            .VULKAN => RenderTarget{
+                .VULKAN = vulkan.VulkanRenderTarget.init(),
+            },
+            .NONE => RenderTarget{
+                .NONE = none.NoneRenderTarget.init(),
+            },
+        };
+    }
+
+    pub fn start(self: RenderTarget, ctx: *const context.Context) void {
+        switch (self) {
+            .OPEN_GL => opengl.OpenGLRenderTarget.start(self.OPEN_GL, &ctx.OPEN_GL),
+            .VULKAN => vulkan.VulkanRenderTarget.start(self.VULKAN, &ctx.VULKAN),
+            .NONE => none.NoneRenderTarget.start(self.NONE, &ctx.NONE),
+        }
+    }
+
+    pub fn render(self: RenderTarget, ctx: *const context.Context, pipeline: Pipeline, buffer: VertexBuffer) void {
+        log.debug("Here 1", .{});
+        switch (self) {
+            .OPEN_GL => opengl.OpenGLRenderTarget.render(self.OPEN_GL, &ctx.OPEN_GL, pipeline.OPEN_GL, buffer.OPEN_GL),
+            .VULKAN => vulkan.VulkanRenderTarget.render(self.VULKAN, &ctx.VULKAN, pipeline.VULKAN, buffer.VULKAN),
+            .NONE => none.NoneRenderTarget.render(self.NONE, &ctx.NONE, pipeline.NONE, buffer.NONE),
+        }
+    }
+
+    pub fn end(self: RenderTarget, ctx: *const context.Context) void {
+        switch (self) {
+            .OPEN_GL => opengl.OpenGLRenderTarget.end(self.OPEN_GL, &ctx.OPEN_GL),
+            .VULKAN => vulkan.VulkanRenderTarget.end(self.VULKAN, &ctx.VULKAN),
+            .NONE => none.NoneRenderTarget.end(self.NONE, &ctx.NONE),
+        }
+    }
+
+    pub fn submit(self: RenderTarget, ctx: *const context.Context) void {
+        switch (self) {
+            .OPEN_GL => opengl.OpenGLRenderTarget.submit(self.OPEN_GL, &ctx.OPEN_GL),
+            .VULKAN => vulkan.VulkanRenderTarget.submit(self.VULKAN, &ctx.VULKAN),
+            .NONE => none.NoneRenderTarget.submit(self.NONE, &ctx.NONE),
+        }
+    }
+
+    pub fn deinit(self: RenderTarget) void {
+        switch (self) {
+            inline else => |case| case.deinit(),
+        }
+    }
+};

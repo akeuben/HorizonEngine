@@ -36,7 +36,13 @@ pub const Window = union(enum) {
         }
     }
 
-    pub fn swap(self: Window, context: Context) void {
+    pub fn start_frame(self: Window, context: *Context) void {
+        switch (self) {
+            inline else => |case| case.start_frame(context),
+        }
+    }
+
+    pub fn swap(self: Window, context: *const Context) void {
         switch (self) {
             inline else => |case| case.swap(context),
         }

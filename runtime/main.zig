@@ -32,23 +32,28 @@ const Vertex = extern struct {
 };
 
 pub fn main() !void {
-    log.set_level(.DEBUG);
-    var context = c.Context.init_open_gl();
-    defer context.deinit();
+    log.set_level(.WARNING);
+    var context = c.Context.init_vulkan();
 
     const window = w.create_window(&context);
     context.load(&window);
 
+    const target = context.get_target();
+
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
-    const triangle_pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout());
+    const triangle_pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
 
     while (!window.should_close()) {
-        context.clear();
+        window.start_frame(&context);
+        target.start(&context);
+        target.render(&context, triangle_pipeline, triangle_buffer);
+        target.end(&context);
+        target.submit(&context);
 
-        context.render(triangle_pipeline, triangle_buffer);
-
-        context.flush();
-        window.swap(context);
+        window.swap(&context);
         window.update();
     }
+
+    triangle_pipeline.deinit();
+    context.deinit();
 }

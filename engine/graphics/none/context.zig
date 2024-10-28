@@ -2,14 +2,22 @@ const log = @import("../../utils/log.zig");
 const Window = @import("../../platform/window.zig").Window;
 const NoneVertexBuffer = @import("buffer.zig").NoneVertexBuffer;
 const NonePipeline = @import("shader.zig").NonePipeline;
+const NoneRenderTarget = @import("target.zig").NoneRenderTarget;
 
 pub const NoneContext = struct {
-    pub fn init() void {}
+    target: NoneRenderTarget,
+
+    pub fn init() NoneContext {
+        return NoneContext{
+            .target = {},
+        };
+    }
 
     pub fn deinit(_: NoneContext) void {}
 
+    pub fn get_target(self: NoneContext) NoneRenderTarget {
+        return self.target;
+    }
+
     pub fn load(_: *NoneContext, _: *const Window) void {}
-    pub fn clear(_: NoneContext) void {}
-    pub fn render(_: NoneContext, _: NonePipeline, _: NoneVertexBuffer) void {}
-    pub fn flush(_: NoneContext) void {}
 };

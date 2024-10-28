@@ -4,6 +4,7 @@ const none = @import("none/context.zig");
 const Window = @import("../platform/window.zig").Window;
 const Pipeline = @import("shader.zig").Pipeline;
 const VertexBuffer = @import("buffer.zig").VertexBuffer;
+const RenderTarget = @import("target.zig").RenderTarget;
 
 pub const API = enum { OPEN_GL, VULKAN, NONE };
 
@@ -44,18 +45,18 @@ pub const Context = union(API) {
         }
     }
 
-    pub fn render(self: Context, pipeline: Pipeline, buffer: VertexBuffer) void {
-        switch (self) {
-            .OPEN_GL => opengl.OpenGLContext.render(self.OPEN_GL, pipeline.OPEN_GL, buffer.OPEN_GL),
-            .VULKAN => vulkan.VulkanContext.render(self.VULKAN, pipeline.VULKAN, buffer.VULKAN),
-            .NONE => none.NoneContext.render(self.NONE, pipeline.NONE, buffer.NONE),
-        }
-    }
-
-    pub fn flush(self: Context) void {
-        switch (self) {
-            inline else => |case| case.flush(),
-        }
+    pub fn get_target(self: Context) RenderTarget {
+        return switch (self) {
+            .OPEN_GL => RenderTarget{
+                .OPEN_GL = self.OPEN_GL.get_target(),
+            },
+            .VULKAN => RenderTarget{
+                .VULKAN = self.VULKAN.get_target(),
+            },
+            .NONE => RenderTarget{
+                .NONE = self.NONE.get_target(),
+            },
+        };
     }
 
     pub fn clear(self: Context) void {

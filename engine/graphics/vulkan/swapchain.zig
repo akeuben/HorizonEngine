@@ -4,6 +4,7 @@ const context = @import("context.zig");
 const Window = @import("../../platform/window.zig").Window;
 const queue = @import("queue.zig");
 const device = @import("device.zig");
+const log = @import("../../utils/log.zig");
 
 pub const SwapChainSupportDetails = struct {
     capabilities: vk.SurfaceCapabilitiesKHR,
@@ -77,6 +78,10 @@ pub const Swapchain = struct {
     image_views: []vk.ImageView,
     format: vk.Format,
     extent: vk.Extent2D,
+    current_image_index: ?usize,
+    in_flight_fence: vk.Fence,
+    image_available_semaphore: vk.Semaphore,
+    render_finished_semaphore: vk.Semaphore,
     allocator: std.mem.Allocator,
 
     pub fn init(ctx: *const context.VulkanContext, window: *const Window, allocator: std.mem.Allocator) !Swapchain {
@@ -156,17 +161,64 @@ pub const Swapchain = struct {
             image_views[i] = try ctx.logical_device.device.createImageView(&view_create_info, null);
         }
 
+        const fence = try ctx.logical_device.device.createFence(&vk.FenceCreateInfo{
+            .flags = .{ .signaled_bit = true },
+        }, null);
+        const image_semaphore = try ctx.logical_device.device.createSemaphore(&.{}, null);
+        const render_semaphore = try ctx.logical_device.device.createSemaphore(&.{}, null);
+
         return Swapchain{
             .swapchain = swapchain,
             .images = images,
             .format = format.format,
             .extent = extent,
             .image_views = image_views,
+            .current_image_index = null,
+            .in_flight_fence = fence,
+            .image_available_semaphore = image_semaphore,
+            .render_finished_semaphore = render_semaphore,
             .allocator = allocator,
         };
     }
 
+    pub fn aquire_image(self: *Swapchain, ctx: *const context.VulkanContext) void {
+        _ = ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fence), vk.TRUE, std.math.maxInt(u64)) catch {
+            log.err("Failed to wait for previous frame to finish!", .{});
+            return undefined;
+        };
+        ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fence)) catch {
+            log.err("Failed to reset previous frame fence", .{});
+        };
+
+        const result = ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphore, .null_handle) catch null;
+        self.current_image_index = if (result != null and result.?.result == .success) result.?.image_index else null;
+        log.debug("Aquired swapchain image {}", .{self.current_image_index.?});
+    }
+
+    pub fn swap(self: Swapchain, ctx: *const context.VulkanContext) void {
+        const wait_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphore};
+
+        const image_index = @as(u32, @intCast(self.current_image_index.?));
+        log.debug("Image index: {}", .{image_index});
+
+        const present_info = vk.PresentInfoKHR{
+            .wait_semaphore_count = 1,
+            .p_wait_semaphores = @ptrCast(wait_semaphores.ptr),
+            .swapchain_count = 1,
+            .p_swapchains = @ptrCast(&self.swapchain),
+            .p_image_indices = @ptrCast(&image_index),
+            .p_results = null,
+        };
+
+        _ = ctx.logical_device.device.queuePresentKHR(ctx.present_queue, &present_info) catch {
+            log.err("Failed to present vulkan", .{});
+        };
+    }
+
     pub fn deinit(self: Swapchain, ctx: *const context.VulkanContext) void {
+        ctx.logical_device.device.destroySemaphore(self.image_available_semaphore, null);
+        ctx.logical_device.device.destroySemaphore(self.render_finished_semaphore, null);
+        ctx.logical_device.device.destroyFence(self.in_flight_fence, null);
         for (self.image_views) |view| {
             ctx.logical_device.device.destroyImageView(view, null);
         }

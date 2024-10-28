@@ -64,10 +64,20 @@ pub const DesktopWindow = struct {
         }
     }
 
-    pub fn swap(self: DesktopWindow, context: Context) void {
-        switch (context) {
+    pub fn start_frame(_: DesktopWindow, context: *Context) void {
+        switch (context.*) {
+            .OPEN_GL => {},
+            .VULKAN => {
+                context.VULKAN.swapchain.aquire_image(&context.VULKAN);
+            },
+            .NONE => {},
+        }
+    }
+
+    pub fn swap(self: DesktopWindow, context: *const Context) void {
+        switch (context.*) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
-            .VULKAN => {},
+            .VULKAN => context.VULKAN.swapchain.swap(&context.VULKAN),
             .NONE => {},
         }
     }

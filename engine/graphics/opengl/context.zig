@@ -3,6 +3,7 @@ const gl = @import("gl");
 const log = @import("../../utils/log.zig");
 const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
 const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
+const OpenGLRenderTarget = @import("target.zig").OpenGLRenderTarget;
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
     return switch (severity) {
@@ -15,8 +16,15 @@ fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLe
 }
 
 pub const OpenGLContext = struct {
+    target: OpenGLRenderTarget,
+
     pub fn init() OpenGLContext {
-        const ctx = .{};
+        const ctx = OpenGLContext{
+            .target = .{
+                // The default framebuffer defined by OpenGL
+                .framebuffer = 0,
+            },
+        };
 
         return ctx;
     }
@@ -37,16 +45,8 @@ pub const OpenGLContext = struct {
         gl.debugMessageCallback(gl_error_callback, null);
     }
 
-    pub fn render(_: OpenGLContext, pipeline: OpenGLPipeline, buffer: OpenGLVertexBuffer) void {
-        pipeline.bind();
-        buffer.bind();
-        gl.drawArrays(gl.TRIANGLES, 0, @intCast(buffer.layout.length));
+    pub fn get_target(self: OpenGLContext) OpenGLRenderTarget {
+        log.debug("GL MODE", .{});
+        return self.target;
     }
-
-    pub fn clear(_: OpenGLContext) void {
-        gl.clearColor(0.02, 0.55, 0.40, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    }
-
-    pub fn flush(_: OpenGLContext) void {}
 };
