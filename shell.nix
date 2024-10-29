@@ -23,6 +23,8 @@
         xorg.libXi
         xorg.libXinerama
         libGL
+
+        renderdoc
     ];
 
     VULKAN_REGISTRY = "${pkgs.vulkan-headers}/share/vulkan/registry/vk.xml";

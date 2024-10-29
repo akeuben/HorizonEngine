@@ -69,7 +69,7 @@ pub const VulkanPipeline = struct {
             .p_name = "main",
         };
 
-        const shader_stages = &.{ vertex_shader_stage_info, fragment_shader_stage_info };
+        const shader_stages: []const vk.PipelineShaderStageCreateInfo = &.{ vertex_shader_stage_info, fragment_shader_stage_info };
         const dynamic_states: []const vk.DynamicState = &.{ .viewport, .scissor };
 
         const dynamic_state = vk.PipelineDynamicStateCreateInfo{
@@ -98,13 +98,13 @@ pub const VulkanPipeline = struct {
             .depth_clamp_enable = vk.FALSE,
             .rasterizer_discard_enable = vk.FALSE,
             .polygon_mode = .fill,
-            .line_width = 1.0,
-            .cull_mode = .{ .back_bit = true },
+            .cull_mode = .{ .back_bit = false },
             .front_face = .clockwise,
             .depth_bias_enable = vk.FALSE,
             .depth_bias_constant_factor = 0.0,
             .depth_bias_clamp = 0.0,
             .depth_bias_slope_factor = 0.0,
+            .line_width = 1.0,
         };
 
         const multisampling = vk.PipelineMultisampleStateCreateInfo{
@@ -117,13 +117,19 @@ pub const VulkanPipeline = struct {
         };
 
         const color_blend_attachement = vk.PipelineColorBlendAttachmentState{
-            .blend_enable = vk.FALSE,
-            .src_color_blend_factor = .one,
-            .dst_color_blend_factor = .zero,
+            .blend_enable = vk.TRUE,
+            .src_color_blend_factor = .src_alpha,
+            .dst_color_blend_factor = .one_minus_src_alpha,
             .color_blend_op = .add,
             .src_alpha_blend_factor = .one,
             .dst_alpha_blend_factor = .zero,
             .alpha_blend_op = .add,
+            .color_write_mask = .{
+                .r_bit = true,
+                .g_bit = true,
+                .b_bit = true,
+                .a_bit = true,
+            },
         };
 
         const color_blending = vk.PipelineColorBlendStateCreateInfo{
@@ -134,7 +140,12 @@ pub const VulkanPipeline = struct {
             .blend_constants = [4]f32{ 0.0, 0.0, 0.0, 0.0 },
         };
 
-        const pipeline_layout = vk.PipelineLayoutCreateInfo{ .set_layout_count = 0, .p_set_layouts = null, .push_constant_range_count = 0, .p_push_constant_ranges = null };
+        const pipeline_layout = vk.PipelineLayoutCreateInfo{
+            .set_layout_count = 0,
+            .p_set_layouts = null,
+            .push_constant_range_count = 0,
+            .p_push_constant_ranges = null,
+        };
 
         const layout = ctx.logical_device.device.createPipelineLayout(&pipeline_layout, null) catch {
             return ShaderError.LinkingError;

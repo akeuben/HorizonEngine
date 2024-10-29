@@ -81,6 +81,10 @@ pub const VulkanContext = struct {
             .name = vk.extensions.khr_swapchain.name,
             .required = true,
         }) catch {};
+        device_extensions.append(.{
+            .name = vk.extensions.khr_maintenance_1.name,
+            .required = true,
+        }) catch {};
 
         layers.appendSlice(validation.debug_required_layers) catch {};
 

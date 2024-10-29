@@ -32,7 +32,7 @@ const Vertex = extern struct {
 };
 
 pub fn main() !void {
-    log.set_level(.WARNING);
+    log.set_level(.DEBUG);
     var context = c.Context.init_vulkan();
 
     const window = w.create_window(&context);
@@ -46,7 +46,7 @@ pub fn main() !void {
     while (!window.should_close()) {
         window.start_frame(&context);
         target.start(&context);
-        target.render(&context, triangle_pipeline, triangle_buffer);
+        target.render(&context, &triangle_pipeline, &triangle_buffer);
         target.end(&context);
         target.submit(&context);
 

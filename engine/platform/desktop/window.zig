@@ -91,10 +91,18 @@ pub const DesktopWindow = struct {
     }
 
     pub fn get_proc_addr_fn(_: DesktopWindow) *const anyopaque {
+        if (glfw.glfwVulkanSupported() != glfw.GLFW_TRUE) {
+            log.fatal("Tried to initialize vulkan, but vulkan could not be found!", .{});
+            std.process.exit(1);
+        }
         return glfwGetInstanceProcAddress;
     }
 
     pub fn get_vk_exts(_: DesktopWindow) []VulkanExtension {
+        if (glfw.glfwVulkanSupported() != glfw.GLFW_TRUE) {
+            log.fatal("Tried to initialize vulkan, but vulkan could not be found!", .{});
+            std.process.exit(1);
+        }
         var count: u32 = 0;
         const glfwExtensions = glfw.glfwGetRequiredInstanceExtensions(&count);
         var extensions = std.heap.page_allocator.alloc(VulkanExtension, count) catch unreachable;
@@ -108,6 +116,10 @@ pub const DesktopWindow = struct {
     }
 
     pub fn create_vk_surface(self: DesktopWindow, ctx: *const VulkanContext) vk.SurfaceKHR {
+        if (glfw.glfwVulkanSupported() != glfw.GLFW_TRUE) {
+            log.fatal("Tried to initialize vulkan, but vulkan could not be found!", .{});
+            std.process.exit(1);
+        }
         var surface: vk.SurfaceKHR = undefined;
         if (glfwCreateWindowSurface(ctx.instance.instance.handle, self.window.?, null, &surface) != .success) {
             log.fatal("Failed to create window surface", .{});

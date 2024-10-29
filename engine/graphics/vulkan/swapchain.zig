@@ -182,24 +182,32 @@ pub const Swapchain = struct {
     }
 
     pub fn aquire_image(self: *Swapchain, ctx: *const context.VulkanContext) void {
-        _ = ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fence), vk.TRUE, std.math.maxInt(u64)) catch {
+        const r = ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fence), vk.TRUE, std.math.maxInt(u64)) catch {
             log.err("Failed to wait for previous frame to finish!", .{});
             return undefined;
         };
+        if (r != .success) {
+            log.err("Failed to wait for previous frame to finish!", .{});
+        }
         ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fence)) catch {
             log.err("Failed to reset previous frame fence", .{});
         };
 
-        const result = ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphore, .null_handle) catch null;
-        self.current_image_index = if (result != null and result.?.result == .success) result.?.image_index else null;
-        log.debug("Aquired swapchain image {}", .{self.current_image_index.?});
+        const result = ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphore, .null_handle) catch {
+            log.err("Failed to acquire next image from swapchain!", .{});
+            return;
+        };
+        if (result.result != .success) {
+            log.err("Failed to acquire next image from swapchain!", .{});
+            return;
+        }
+        self.current_image_index = result.image_index;
     }
 
     pub fn swap(self: Swapchain, ctx: *const context.VulkanContext) void {
         const wait_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphore};
 
         const image_index = @as(u32, @intCast(self.current_image_index.?));
-        log.debug("Image index: {}", .{image_index});
 
         const present_info = vk.PresentInfoKHR{
             .wait_semaphore_count = 1,
@@ -210,9 +218,15 @@ pub const Swapchain = struct {
             .p_results = null,
         };
 
-        _ = ctx.logical_device.device.queuePresentKHR(ctx.present_queue, &present_info) catch {
+        const result = ctx.logical_device.device.queuePresentKHR(ctx.present_queue, &present_info) catch {
             log.err("Failed to present vulkan", .{});
+            return;
         };
+
+        if (result != .success) {
+            log.err("Swap failed", .{});
+            return;
+        }
     }
 
     pub fn deinit(self: Swapchain, ctx: *const context.VulkanContext) void {

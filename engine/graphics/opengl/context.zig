@@ -41,6 +41,7 @@ pub const OpenGLContext = struct {
             log.fatal("Fauled to load gl extension GL_ARB_gl_spirv. Does your system support it?", .{});
         };
 
+        gl.enable(gl.FRAMEBUFFER_SRGB);
         gl.enable(gl.DEBUG_OUTPUT);
         gl.debugMessageCallback(gl_error_callback, null);
     }

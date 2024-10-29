@@ -21,27 +21,26 @@ pub const VulkanRenderTarget = union(enum) {
         };
     }
 
-    pub fn start(self: VulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        switch (self) {
+    pub fn start(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+        switch (self.*) {
             inline else => |case| case.start(ctx),
         }
     }
 
-    pub fn render(self: VulkanRenderTarget, ctx: *const context.VulkanContext, pipeline: VulkanPipeline, buffer: VulkanVertexBuffer) void {
-        log.debug("Here 2", .{});
-        switch (self) {
+    pub fn render(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext, pipeline: *const VulkanPipeline, buffer: *const VulkanVertexBuffer) void {
+        switch (self.*) {
             inline else => |case| case.render(ctx, pipeline, buffer),
         }
     }
 
-    pub fn end(self: VulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        switch (self) {
+    pub fn end(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+        switch (self.*) {
             inline else => |case| case.end(ctx),
         }
     }
 
-    pub fn submit(self: VulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        switch (self) {
+    pub fn submit(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+        switch (self.*) {
             inline else => |case| case.submit(ctx),
         }
     }
@@ -97,14 +96,12 @@ pub const OtherVulkanRenderTarget = struct {
         return self.renderpass;
     }
 
-    pub fn start(_: OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
+    pub fn start(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
 
-    pub fn render(_: OtherVulkanRenderTarget, _: *const context.VulkanContext, _: VulkanPipeline, _: VulkanVertexBuffer) void {
-        log.debug("Here 3 (Other)", .{});
-    }
+    pub fn render(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext, _: *const VulkanPipeline, _: *const VulkanVertexBuffer) void {}
 
-    pub fn end(_: OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
-    pub fn submit(_: OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
+    pub fn end(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
+    pub fn submit(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
 
     pub fn deinit(self: OtherVulkanRenderTarget, ctx: *const context.VulkanContext) void {
         ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
@@ -115,7 +112,6 @@ pub const SwapchainVulkanRenderTarget = struct {
     renderpass: vk.RenderPass,
     framebuffers: []vk.Framebuffer,
     command_buffer: vk.CommandBuffer,
-    image_index: usize,
 
     pub fn init(ctx: *const context.VulkanContext) !SwapchainVulkanRenderTarget {
         const attachment_description = vk.AttachmentDescription{
@@ -188,7 +184,6 @@ pub const SwapchainVulkanRenderTarget = struct {
             .renderpass = renderpass,
             .framebuffers = framebuffers,
             .command_buffer = command_buffer,
-            .image_index = 0,
         };
     }
 
@@ -196,7 +191,7 @@ pub const SwapchainVulkanRenderTarget = struct {
         return self.renderpass;
     }
 
-    pub fn start(self: SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn start(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
         ctx.logical_device.device.resetCommandBuffer(self.command_buffer, .{}) catch {
             log.err("Failed to reset command buffer", .{});
         };
@@ -223,20 +218,15 @@ pub const SwapchainVulkanRenderTarget = struct {
             .p_clear_values = @ptrCast(&clear_color),
         };
 
-        log.debug("Using framebuffer: {}", .{ctx.swapchain.current_image_index.?});
-
         ctx.logical_device.device.cmdBeginRenderPass(self.command_buffer, &pass_info, .@"inline");
     }
 
-    pub fn render(self: SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext, pipeline: VulkanPipeline, _: VulkanVertexBuffer) void {
-        log.debug("Here 4 (Swapchain)", .{});
-        ctx.logical_device.device.cmdBindPipeline(self.command_buffer, .graphics, pipeline.pipeline);
-
+    pub fn render(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext, pipeline: *const VulkanPipeline, _: *const VulkanVertexBuffer) void {
         const viewport = vk.Viewport{
             .x = 0,
-            .y = 0,
+            .y = @as(f32, @floatFromInt(ctx.swapchain.extent.height)),
             .width = @floatFromInt(ctx.swapchain.extent.width),
-            .height = @floatFromInt(ctx.swapchain.extent.height),
+            .height = -@as(f32, @floatFromInt(ctx.swapchain.extent.height)),
             .min_depth = 0,
             .max_depth = 1,
         };
@@ -248,11 +238,12 @@ pub const SwapchainVulkanRenderTarget = struct {
         };
         ctx.logical_device.device.cmdSetScissor(self.command_buffer, 0, 1, @ptrCast(&scissor));
 
+        ctx.logical_device.device.cmdBindPipeline(self.command_buffer, .graphics, pipeline.pipeline);
+
         ctx.logical_device.device.cmdDraw(self.command_buffer, 3, 1, 0, 0);
-        log.debug("Added draw call to cmdbuffer", .{});
     }
 
-    pub fn end(self: SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn end(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
         ctx.logical_device.device.cmdEndRenderPass(self.command_buffer);
 
         ctx.logical_device.device.endCommandBuffer(self.command_buffer) catch {
@@ -261,7 +252,7 @@ pub const SwapchainVulkanRenderTarget = struct {
         };
     }
 
-    pub fn submit(self: SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn submit(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
         const wait_semaphores: []const vk.Semaphore = &.{ctx.swapchain.image_available_semaphore};
         const wait_stages: vk.PipelineStageFlags = .{ .color_attachment_output_bit = true };
 
