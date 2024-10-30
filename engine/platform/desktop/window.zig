@@ -8,7 +8,9 @@ const Context = @import("../../graphics/context.zig").Context;
 const VulkanExtension = @import("../../graphics/vulkan/extension.zig").VulkanExtension;
 const vk = @import("vulkan");
 const VulkanContext = @import("../../graphics/vulkan/context.zig").VulkanContext;
+const VulkanSwapchain = @import("../../graphics/vulkan/swapchain.zig");
 const platform = @import("platform");
+const Window = @import("../window.zig");
 
 fn error_callback(error_code: c_int, message: [*c]const u8) callconv(.C) void {
     log.debug("glfw - {}: {s}\n", .{ error_code, message });
@@ -18,8 +20,14 @@ pub extern fn glfwGetInstanceProcAddress(instance: vk.Instance, procname: [*:0]c
 pub extern fn glfwGetPhysicalDevicePresentationSupport(instance: vk.Instance, pdev: vk.PhysicalDevice, queuefamily: u32) c_int;
 pub extern fn glfwCreateWindowSurface(instance: vk.Instance, window: *glfw.GLFWwindow, allocation_callbacks: ?*const vk.AllocationCallbacks, surface: *vk.SurfaceKHR) vk.Result;
 
+fn resize_callback(glfw_window: ?*glfw.GLFWwindow, _: i32, _: i32) callconv(.C) void {
+    const window: ?*DesktopWindow = @ptrCast(@alignCast(glfw.glfwGetWindowUserPointer(glfw_window)));
+    window.?.context.notify_resized();
+}
+
 pub const DesktopWindow = struct {
     window: ?*glfw.GLFWwindow,
+    context: *Context,
 
     pub fn init() void {
         _ = glfw.glfwSetErrorCallback(error_callback);
@@ -38,14 +46,16 @@ pub const DesktopWindow = struct {
         return size;
     }
 
-    pub fn create_window(context: *const Context) DesktopWindow {
+    pub fn create_window(context: *Context, allocator: std.mem.Allocator) *DesktopWindow {
         if (context.* == .VULKAN) {
             glfw.glfwWindowHint(glfw.GLFW_CLIENT_API, glfw.GLFW_NO_API);
-            glfw.glfwWindowHint(glfw.GLFW_RESIZABLE, glfw.GLFW_FALSE);
         }
-        return DesktopWindow{
-            .window = glfw.glfwCreateWindow(480, 320, "Engine", null, null),
-        };
+        var window = allocator.create(DesktopWindow) catch unreachable;
+        window.window = glfw.glfwCreateWindow(480, 320, "Engine", null, null);
+        window.context = context;
+        glfw.glfwSetWindowUserPointer(window.window, window);
+        _ = glfw.glfwSetFramebufferSizeCallback(window.window, resize_callback);
+        return window;
     }
 
     pub fn deinit() void {
@@ -64,20 +74,34 @@ pub const DesktopWindow = struct {
         }
     }
 
-    pub fn start_frame(_: DesktopWindow, context: *Context) void {
+    pub fn start_frame(self: DesktopWindow, context: *Context) void {
         switch (context.*) {
             .OPEN_GL => {},
             .VULKAN => {
-                context.VULKAN.swapchain.aquire_image(&context.VULKAN);
+                while (true) {
+                    if (context.VULKAN.swapchain.acquire_image(&context.VULKAN)) {
+                        break;
+                    } else |err| switch (err) {
+                        VulkanSwapchain.AcquireImageError.OutOfDateSwapchain => {
+                            // Recreate the swapchain
+                            context.VULKAN.target.DEFAULT.resize(&context.VULKAN, self.get_size_pixels());
+                        },
+                        else => {
+                            log.fatal("Failed to acquire swapchain image.", .{});
+                        },
+                    }
+                }
             },
             .NONE => {},
         }
     }
 
-    pub fn swap(self: DesktopWindow, context: *const Context) void {
+    pub fn swap(self: *DesktopWindow, context: *Context) void {
         switch (context.*) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
-            .VULKAN => context.VULKAN.swapchain.swap(&context.VULKAN),
+            .VULKAN => {
+                context.VULKAN.swapchain.swap(&context.VULKAN, &Window.Window{ .desktop = self });
+            },
             .NONE => {},
         }
     }

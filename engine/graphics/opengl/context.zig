@@ -46,8 +46,10 @@ pub const OpenGLContext = struct {
         gl.debugMessageCallback(gl_error_callback, null);
     }
 
-    pub fn get_target(self: OpenGLContext) OpenGLRenderTarget {
+    pub fn notify_resized(_: *OpenGLContext) void {}
+
+    pub fn get_target(self: *OpenGLContext) *OpenGLRenderTarget {
         log.debug("GL MODE", .{});
-        return self.target;
+        return &self.target;
     }
 };

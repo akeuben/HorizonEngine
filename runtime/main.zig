@@ -33,9 +33,22 @@ const Vertex = extern struct {
 
 pub fn main() !void {
     log.set_level(.DEBUG);
-    var context = c.Context.init_vulkan();
 
-    const window = w.create_window(&context);
+    const args = try std.process.argsAlloc(std.heap.page_allocator);
+    defer std.process.argsFree(std.heap.page_allocator, args);
+
+    var context: c.Context = undefined;
+    if (args.len != 2) {
+        context = c.Context.init_none();
+    } else if (std.mem.eql(u8, "vk", args[1])) {
+        context = c.Context.init_vulkan();
+    } else if (std.mem.eql(u8, "gl", args[1])) {
+        context = c.Context.init_open_gl();
+    } else {
+        context = c.Context.init_none();
+    }
+
+    const window = w.create_window(&context, std.heap.page_allocator);
     context.load(&window);
 
     const target = context.get_target();

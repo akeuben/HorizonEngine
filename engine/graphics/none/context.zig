@@ -9,15 +9,17 @@ pub const NoneContext = struct {
 
     pub fn init() NoneContext {
         return NoneContext{
-            .target = {},
+            .target = .{},
         };
     }
 
     pub fn deinit(_: NoneContext) void {}
 
-    pub fn get_target(self: NoneContext) NoneRenderTarget {
-        return self.target;
+    pub fn get_target(self: *NoneContext) *NoneRenderTarget {
+        return &self.target;
     }
+
+    pub fn notify_resized(_: *NoneContext) void {}
 
     pub fn load(_: *NoneContext, _: *const Window) void {}
 };

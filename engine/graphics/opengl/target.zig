@@ -1,3 +1,4 @@
+const std = @import("std");
 const context = @import("context.zig");
 const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
@@ -7,13 +8,13 @@ const log = @import("../../utils/log.zig");
 pub const OpenGLRenderTarget = struct {
     framebuffer: u32,
 
-    pub fn init(_: *const context.OpenGLContext) OpenGLRenderTarget {
+    pub fn init(_: *const context.OpenGLContext, allocator: std.mem.Allocator) *OpenGLRenderTarget {
         var framebuffer: u32 = 0;
         gl.genFramebuffers(1, @ptrCast(&framebuffer));
 
-        return OpenGLRenderTarget{
-            .framebuffer = framebuffer,
-        };
+        const target = try allocator.create(OpenGLRenderTarget);
+        target.framebuffer = framebuffer;
+        return target;
     }
 
     pub fn start(_: *const OpenGLRenderTarget, _: *const context.OpenGLContext) void {

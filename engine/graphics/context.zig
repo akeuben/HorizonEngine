@@ -45,8 +45,8 @@ pub const Context = union(API) {
         }
     }
 
-    pub fn get_target(self: Context) RenderTarget {
-        return switch (self) {
+    pub fn get_target(self: *Context) RenderTarget {
+        return switch (self.*) {
             .OPEN_GL => RenderTarget{
                 .OPEN_GL = self.OPEN_GL.get_target(),
             },
@@ -57,6 +57,14 @@ pub const Context = union(API) {
                 .NONE = self.NONE.get_target(),
             },
         };
+    }
+
+    pub fn notify_resized(self: *Context) void {
+        switch (self.*) {
+            .OPEN_GL => opengl.OpenGLContext.notify_resized(&self.OPEN_GL),
+            .VULKAN => vulkan.VulkanContext.notify_resized(&self.VULKAN),
+            .NONE => none.NoneContext.notify_resized(&self.NONE),
+        }
     }
 
     pub fn clear(self: Context) void {

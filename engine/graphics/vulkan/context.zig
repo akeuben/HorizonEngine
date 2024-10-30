@@ -134,7 +134,7 @@ pub const VulkanContext = struct {
         log.debug("Created command pool", .{});
 
         self.target = VulkanRenderTarget{
-            .DEFAULT = SwapchainVulkanRenderTarget.init(self) catch {
+            .DEFAULT = SwapchainVulkanRenderTarget.init(self, std.heap.page_allocator) catch {
                 log.fatal("Failed to create default render target", .{});
                 std.process.exit(1);
             },
@@ -142,9 +142,13 @@ pub const VulkanContext = struct {
         log.debug("Created vulkan default render target", .{});
     }
 
-    pub fn get_target(self: VulkanContext) VulkanRenderTarget {
+    pub fn get_target(self: *VulkanContext) *VulkanRenderTarget {
         if (!self.loaded) log.fatal("Tried to access a context that has not been loaded!", .{});
-        return self.target;
+        return &self.target;
+    }
+
+    pub fn notify_resized(self: *VulkanContext) void {
+        self.swapchain.resized = true;
     }
 
     pub fn deinit(self: VulkanContext) void {

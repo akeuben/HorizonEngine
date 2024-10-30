@@ -1,11 +1,12 @@
+const std = @import("std");
 const context = @import("context.zig");
 const NonePipeline = @import("shader.zig").NonePipeline;
 const NoneVertexBuffer = @import("buffer.zig").NoneVertexBuffer;
 const gl = @import("gl");
 
 pub const NoneRenderTarget = struct {
-    pub fn init(_: *const context.NoneContext) NoneRenderTarget {
-        return NoneRenderTarget{};
+    pub fn init(_: *const context.NoneContext, allocator: std.mem.Allocator) *NoneRenderTarget {
+        return allocator.alloc(NoneRenderTarget);
     }
 
     pub fn start(_: *const NoneRenderTarget, _: *const context.NoneContext) void {}

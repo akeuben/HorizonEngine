@@ -4,14 +4,15 @@ const vk = @import("vulkan");
 const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
 const log = @import("../../utils/log.zig");
+const swapchain = @import("swapchain.zig");
 
 pub const VulkanRenderTarget = union(enum) {
-    DEFAULT: SwapchainVulkanRenderTarget,
-    OTHER: OtherVulkanRenderTarget,
+    DEFAULT: *SwapchainVulkanRenderTarget,
+    OTHER: *OtherVulkanRenderTarget,
 
-    pub fn init(ctx: *const context.VulkanContext) !VulkanRenderTarget {
+    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !*VulkanRenderTarget {
         return VulkanRenderTarget{
-            .OTHER = try OtherVulkanRenderTarget.init(ctx),
+            .OTHER = try OtherVulkanRenderTarget.init(ctx, allocator),
         };
     }
 
@@ -55,7 +56,7 @@ pub const VulkanRenderTarget = union(enum) {
 pub const OtherVulkanRenderTarget = struct {
     renderpass: vk.RenderPass,
 
-    pub fn init(ctx: *const context.VulkanContext) !OtherVulkanRenderTarget {
+    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !*OtherVulkanRenderTarget {
         const attachment_description = vk.AttachmentDescription{
             .format = ctx.swapchain.format,
             .samples = .{ .@"1_bit" = true },
@@ -87,9 +88,9 @@ pub const OtherVulkanRenderTarget = struct {
 
         const renderpass = try ctx.logical_device.device.createRenderPass(&renderpass_create_info, null);
 
-        return OtherVulkanRenderTarget{
-            .renderpass = renderpass,
-        };
+        const target = try allocator.create(OtherVulkanRenderTarget);
+        target.renderpass = renderpass;
+        return target;
     }
 
     pub fn get_renderpass(self: OtherVulkanRenderTarget) vk.RenderPass {
@@ -111,9 +112,9 @@ pub const OtherVulkanRenderTarget = struct {
 pub const SwapchainVulkanRenderTarget = struct {
     renderpass: vk.RenderPass,
     framebuffers: []vk.Framebuffer,
-    command_buffer: vk.CommandBuffer,
+    command_buffers: [swapchain.MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
 
-    pub fn init(ctx: *const context.VulkanContext) !SwapchainVulkanRenderTarget {
+    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !*SwapchainVulkanRenderTarget {
         const attachment_description = vk.AttachmentDescription{
             .format = ctx.swapchain.format,
             .samples = .{ .@"1_bit" = true },
@@ -156,6 +157,25 @@ pub const SwapchainVulkanRenderTarget = struct {
 
         const renderpass = try ctx.logical_device.device.createRenderPass(&renderpass_create_info, null);
 
+        const framebuffers = try create_framebuffers(ctx, renderpass);
+
+        const command_buffer_info = vk.CommandBufferAllocateInfo{
+            .command_pool = ctx.command_pool,
+            .level = .primary,
+            .command_buffer_count = @intCast(swapchain.MAX_FRAMES_IN_FLIGHT),
+        };
+
+        var command_buffers: [swapchain.MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer = undefined;
+        try ctx.logical_device.device.allocateCommandBuffers(&command_buffer_info, @ptrCast(&command_buffers));
+
+        const target = try allocator.create(SwapchainVulkanRenderTarget);
+        target.renderpass = renderpass;
+        target.framebuffers = framebuffers;
+        target.command_buffers = command_buffers;
+        return target;
+    }
+
+    fn create_framebuffers(ctx: *const context.VulkanContext, renderpass: vk.RenderPass) ![]vk.Framebuffer {
         const framebuffers = try std.heap.page_allocator.alloc(vk.Framebuffer, ctx.swapchain.image_views.len);
 
         for (ctx.swapchain.image_views, 0..) |image_view, i| {
@@ -171,20 +191,7 @@ pub const SwapchainVulkanRenderTarget = struct {
             framebuffers[i] = try ctx.logical_device.device.createFramebuffer(@ptrCast(&info), null);
         }
 
-        const command_buffer_info = vk.CommandBufferAllocateInfo{
-            .command_pool = ctx.command_pool,
-            .level = .primary,
-            .command_buffer_count = 1,
-        };
-
-        var command_buffer: vk.CommandBuffer = undefined;
-        try ctx.logical_device.device.allocateCommandBuffers(&command_buffer_info, @ptrCast(&command_buffer));
-
-        return SwapchainVulkanRenderTarget{
-            .renderpass = renderpass,
-            .framebuffers = framebuffers,
-            .command_buffer = command_buffer,
-        };
+        return framebuffers;
     }
 
     pub fn get_renderpass(self: SwapchainVulkanRenderTarget) vk.RenderPass {
@@ -192,7 +199,7 @@ pub const SwapchainVulkanRenderTarget = struct {
     }
 
     pub fn start(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        ctx.logical_device.device.resetCommandBuffer(self.command_buffer, .{}) catch {
+        ctx.logical_device.device.resetCommandBuffer(self.command_buffers[ctx.swapchain.current_frame], .{}) catch {
             log.err("Failed to reset command buffer", .{});
         };
         const begin_info = vk.CommandBufferBeginInfo{
@@ -200,7 +207,7 @@ pub const SwapchainVulkanRenderTarget = struct {
             .p_inheritance_info = null,
         };
 
-        ctx.logical_device.device.beginCommandBuffer(self.command_buffer, &begin_info) catch {
+        ctx.logical_device.device.beginCommandBuffer(self.command_buffers[ctx.swapchain.current_frame], &begin_info) catch {
             log.err("Failed to start command buffer", .{});
             return;
         };
@@ -218,7 +225,7 @@ pub const SwapchainVulkanRenderTarget = struct {
             .p_clear_values = @ptrCast(&clear_color),
         };
 
-        ctx.logical_device.device.cmdBeginRenderPass(self.command_buffer, &pass_info, .@"inline");
+        ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[ctx.swapchain.current_frame], &pass_info, .@"inline");
     }
 
     pub fn render(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext, pipeline: *const VulkanPipeline, _: *const VulkanVertexBuffer) void {
@@ -230,46 +237,68 @@ pub const SwapchainVulkanRenderTarget = struct {
             .min_depth = 0,
             .max_depth = 1,
         };
-        ctx.logical_device.device.cmdSetViewport(self.command_buffer, 0, 1, @ptrCast(&viewport));
+        ctx.logical_device.device.cmdSetViewport(self.command_buffers[ctx.swapchain.current_frame], 0, 1, @ptrCast(&viewport));
 
         const scissor = vk.Rect2D{
             .offset = .{ .x = 0, .y = 0 },
             .extent = ctx.swapchain.extent,
         };
-        ctx.logical_device.device.cmdSetScissor(self.command_buffer, 0, 1, @ptrCast(&scissor));
+        ctx.logical_device.device.cmdSetScissor(self.command_buffers[ctx.swapchain.current_frame], 0, 1, @ptrCast(&scissor));
 
-        ctx.logical_device.device.cmdBindPipeline(self.command_buffer, .graphics, pipeline.pipeline);
+        ctx.logical_device.device.cmdBindPipeline(self.command_buffers[ctx.swapchain.current_frame], .graphics, pipeline.pipeline);
 
-        ctx.logical_device.device.cmdDraw(self.command_buffer, 3, 1, 0, 0);
+        ctx.logical_device.device.cmdDraw(self.command_buffers[ctx.swapchain.current_frame], 3, 1, 0, 0);
     }
 
     pub fn end(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        ctx.logical_device.device.cmdEndRenderPass(self.command_buffer);
+        ctx.logical_device.device.cmdEndRenderPass(self.command_buffers[ctx.swapchain.current_frame]);
 
-        ctx.logical_device.device.endCommandBuffer(self.command_buffer) catch {
+        ctx.logical_device.device.endCommandBuffer(self.command_buffers[ctx.swapchain.current_frame]) catch {
             log.err("Failed to record command buffer", .{});
             return;
         };
     }
 
     pub fn submit(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        const wait_semaphores: []const vk.Semaphore = &.{ctx.swapchain.image_available_semaphore};
+        const wait_semaphores: []const vk.Semaphore = &.{ctx.swapchain.image_available_semaphores[ctx.swapchain.current_frame]};
         const wait_stages: vk.PipelineStageFlags = .{ .color_attachment_output_bit = true };
 
-        const signal_semaphores: []const vk.Semaphore = &.{ctx.swapchain.render_finished_semaphore};
+        const signal_semaphores: []const vk.Semaphore = &.{ctx.swapchain.render_finished_semaphores[ctx.swapchain.current_frame]};
 
         const submit_info = vk.SubmitInfo{
             .wait_semaphore_count = 1,
             .p_wait_semaphores = @ptrCast(wait_semaphores.ptr),
             .p_wait_dst_stage_mask = @ptrCast(&wait_stages),
             .command_buffer_count = 1,
-            .p_command_buffers = @ptrCast(&self.command_buffer),
+            .p_command_buffers = @ptrCast(&self.command_buffers[ctx.swapchain.current_frame]),
             .signal_semaphore_count = 1,
             .p_signal_semaphores = @ptrCast(signal_semaphores.ptr),
         };
 
-        ctx.logical_device.device.queueSubmit(ctx.graphics_queue, 1, @ptrCast(&submit_info), ctx.swapchain.in_flight_fence) catch {
+        ctx.logical_device.device.queueSubmit(ctx.graphics_queue, 1, @ptrCast(&submit_info), ctx.swapchain.in_flight_fences[ctx.swapchain.current_frame]) catch {
             log.err("Failed to submit command buffer to graphics queue", .{});
+        };
+    }
+
+    pub fn resize(self: *SwapchainVulkanRenderTarget, ctx: *context.VulkanContext, new_size: @Vector(2, i32)) void {
+        ctx.logical_device.device.deviceWaitIdle() catch {};
+
+        // Destroy the old framebuffers
+        for (self.framebuffers) |framebuffer| {
+            ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
+        }
+        std.heap.page_allocator.free(self.framebuffers);
+
+        // Destroy the old swapchain
+        ctx.swapchain.recreate(ctx, new_size) catch {
+            log.fatal("Failed to recreate swapchain", .{});
+            std.process.exit(1);
+        };
+
+        // Create new framebuffers
+        self.framebuffers = create_framebuffers(ctx, self.renderpass) catch {
+            log.fatal("Failed to recreate framebuffers", .{});
+            std.process.exit(1);
         };
     }
 

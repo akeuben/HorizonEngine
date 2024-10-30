@@ -10,7 +10,7 @@ const VulkanContext = @import("../graphics/vulkan/context.zig").VulkanContext;
 const WindowError = error{UnsupportedPlatform};
 
 pub const Window = union(enum) {
-    desktop: DesktopWindow,
+    desktop: *DesktopWindow,
 
     pub fn set_size_screenspace(self: Window, width: i32, height: i32) void {
         switch (self) {
@@ -42,7 +42,7 @@ pub const Window = union(enum) {
         }
     }
 
-    pub fn swap(self: Window, context: *const Context) void {
+    pub fn swap(self: Window, context: *Context) void {
         switch (self) {
             inline else => |case| case.swap(context),
         }
@@ -81,7 +81,7 @@ pub const Window = union(enum) {
 
 var initialized = false;
 
-pub fn create_window(context: *const Context) Window {
+pub fn create_window(context: *Context, allocator: std.mem.Allocator) Window {
     if (!initialized) {
         switch (comptime platform.get_platform()) {
             .LINUX => DesktopWindow.init(),
@@ -94,8 +94,8 @@ pub fn create_window(context: *const Context) Window {
         initialized = true;
     }
     return switch (comptime platform.get_platform()) {
-        .LINUX => .{ .desktop = DesktopWindow.create_window(context) },
-        .WINDOWS => .{ .desktop = DesktopWindow.create_window(context) },
+        .LINUX => .{ .desktop = DesktopWindow.create_window(context, allocator) },
+        .WINDOWS => .{ .desktop = DesktopWindow.create_window(context, allocator) },
         else => {
             log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(platform.get_platform())});
             std.process.exit(1);
