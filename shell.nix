@@ -5,6 +5,7 @@
         # Build tools
         zig.packages.x86_64-linux.master
         zls
+        cmake
         dotnet-sdk_7
 
         # Vulkan

@@ -1,3 +1,3 @@
-lib/
+vendor/
 zig-out/
 .zig-cache/
