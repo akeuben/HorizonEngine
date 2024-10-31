@@ -1,0 +1,9 @@
+[submodule "vendor/VulkanMemoryAllocator"]
+	path = vendor/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "vendor/glfw"]
+	path = vendor/glfw
+	url = https://github.com/glfw/glfw
+[submodule "vendor/zig-opengl"]
+	path = vendor/zig-opengl
+	url = https://github.com/ikskuh/zig-opengl
