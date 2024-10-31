@@ -4,6 +4,8 @@ const log = @import("../../utils/log.zig");
 const ShaderError = @import("../shader.zig").ShaderError;
 const BufferLayout = @import("../type.zig").BufferLayout;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
+const std = @import("std");
+const types = @import("../type.zig");
 
 pub const VulkanVertexShader = struct {
     module: vk.ShaderModule,
@@ -51,12 +53,29 @@ pub const VulkanFragmentShader = struct {
     }
 };
 
+fn shader_type_to_vulkan_type(shader_type: types.ShaderLayoutElementType) vk.Format {
+    return switch (shader_type) {
+        .Vec1f => vk.Format.r32_sfloat,
+        .Vec2f => vk.Format.r32g32_sfloat,
+        .Vec3f => vk.Format.r32g32b32_sfloat,
+        .Vec4f => vk.Format.r32g32b32a32_sfloat,
+        .Vec1d => vk.Format.r64_sfloat,
+        .Vec2d => vk.Format.r64g64_sfloat,
+        .Vec3d => vk.Format.r64g64b64_sfloat,
+        .Vec4d => vk.Format.r64g64b64a64_sfloat,
+        else => {
+            log.fatal("Invalid vertex buffer element type", .{});
+            unreachable;
+        },
+    };
+}
+
 pub const VulkanPipeline = struct {
     layout: vk.PipelineLayout,
     pipeline: vk.Pipeline,
     context: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, _: *const BufferLayout, target: *const VulkanRenderTarget) ShaderError!VulkanPipeline {
+    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout, target: *const VulkanRenderTarget) ShaderError!VulkanPipeline {
         const vertex_shader_stage_info = vk.PipelineShaderStageCreateInfo{
             .stage = .{ .vertex_bit = true, .fragment_bit = false },
             .module = vertex_shader.module,
@@ -77,11 +96,30 @@ pub const VulkanPipeline = struct {
             .p_dynamic_states = @ptrCast(dynamic_states.ptr),
         };
 
+        const binding_description = vk.VertexInputBindingDescription{
+            .binding = 0,
+            .stride = layout.size,
+            .input_rate = .vertex,
+        };
+
+        const attribute_descriptions = std.heap.page_allocator.alloc(vk.VertexInputAttributeDescription, layout.elements.len) catch {
+            return ShaderError.LinkingError;
+        };
+        defer std.heap.page_allocator.free(attribute_descriptions);
+        for (layout.elements, 0..) |element, i| {
+            attribute_descriptions[i] = vk.VertexInputAttributeDescription{
+                .binding = 0,
+                .location = @intCast(i),
+                .format = shader_type_to_vulkan_type(element.shader_type),
+                .offset = element.offset,
+            };
+        }
+
         const vertex_input_info = vk.PipelineVertexInputStateCreateInfo{
-            .vertex_binding_description_count = 0,
-            .p_vertex_binding_descriptions = null,
-            .vertex_attribute_description_count = 0,
-            .p_vertex_attribute_descriptions = null,
+            .vertex_binding_description_count = 1,
+            .p_vertex_binding_descriptions = @ptrCast(&binding_description),
+            .vertex_attribute_description_count = @intCast(attribute_descriptions.len),
+            .p_vertex_attribute_descriptions = @ptrCast(attribute_descriptions.ptr),
         };
 
         const input_assembly = vk.PipelineInputAssemblyStateCreateInfo{
@@ -147,7 +185,7 @@ pub const VulkanPipeline = struct {
             .p_push_constant_ranges = null,
         };
 
-        const layout = ctx.logical_device.device.createPipelineLayout(&pipeline_layout, null) catch {
+        const vk_layout = ctx.logical_device.device.createPipelineLayout(&pipeline_layout, null) catch {
             return ShaderError.LinkingError;
         };
 
@@ -162,7 +200,7 @@ pub const VulkanPipeline = struct {
             .p_depth_stencil_state = null,
             .p_color_blend_state = @ptrCast(&color_blending),
             .p_dynamic_state = @ptrCast(&dynamic_state),
-            .layout = layout,
+            .layout = vk_layout,
             .render_pass = target.get_renderpass(),
             .subpass = 0,
             .base_pipeline_handle = .null_handle,
@@ -177,7 +215,7 @@ pub const VulkanPipeline = struct {
         }
 
         return VulkanPipeline{
-            .layout = layout,
+            .layout = vk_layout,
             .pipeline = pipeline,
             .context = ctx,
         };
@@ -187,6 +225,4 @@ pub const VulkanPipeline = struct {
         self.context.logical_device.device.destroyPipeline(self.pipeline, null);
         self.context.logical_device.device.destroyPipelineLayout(self.layout, null);
     }
-
-    pub fn bind(_: VulkanPipeline) void {}
 };

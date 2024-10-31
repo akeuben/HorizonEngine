@@ -59,9 +59,9 @@ pub const Context = union(API) {
         };
     }
 
-    pub fn notify_resized(self: *Context) void {
+    pub fn notify_resized(self: *Context, new_size: @Vector(2, i32)) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLContext.notify_resized(&self.OPEN_GL),
+            .OPEN_GL => opengl.OpenGLContext.notify_resized(&self.OPEN_GL, new_size),
             .VULKAN => vulkan.VulkanContext.notify_resized(&self.VULKAN),
             .NONE => none.NoneContext.notify_resized(&self.NONE),
         }

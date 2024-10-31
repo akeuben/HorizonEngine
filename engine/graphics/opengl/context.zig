@@ -6,6 +6,7 @@ const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLRenderTarget = @import("target.zig").OpenGLRenderTarget;
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+    log.debug("A GL error occurred.", .{});
     return switch (severity) {
         gl.DEBUG_SEVERITY_HIGH => log.err("GL {}: {s}", .{ id, message }),
         gl.DEBUG_SEVERITY_MEDIUM => log.err("GL {}: {s}", .{ id, message }),
@@ -44,9 +45,12 @@ pub const OpenGLContext = struct {
         gl.enable(gl.FRAMEBUFFER_SRGB);
         gl.enable(gl.DEBUG_OUTPUT);
         gl.debugMessageCallback(gl_error_callback, null);
+        log.debug("Enabled gl debug callback", .{});
     }
 
-    pub fn notify_resized(_: *OpenGLContext) void {}
+    pub fn notify_resized(_: *OpenGLContext, new_size: @Vector(2, i32)) void {
+        gl.viewport(0, 0, new_size[0], new_size[1]);
+    }
 
     pub fn get_target(self: *OpenGLContext) *OpenGLRenderTarget {
         log.debug("GL MODE", .{});

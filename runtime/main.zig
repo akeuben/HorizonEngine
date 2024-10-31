@@ -6,18 +6,19 @@ const w = engine.platform.window;
 const types = engine.graphics.types;
 const c = engine.graphics.context;
 const b = engine.graphics.buffer;
+const o = engine.graphics.object;
 const s = engine.graphics.shader;
 const log = engine.log;
 const gl = engine.gl;
 const zm = engine.zm;
 
 const triangle_vertices: []const Vertex = &[_]Vertex{
-    .{ .position = .{ -0.75, -0.75 }, .color = .{ 1.0, 1.0, 1.0 } },
-    .{ .position = .{ -0.25, -0.75 }, .color = .{ 1.0, 1.0, 1.0 } },
-    .{ .position = .{ -0.5, -0.25 }, .color = .{ 1.0, 1.0, 1.0 } },
+    .{ .position = .{ -0.75, -0.75 }, .color = .{ 1.0, 0.0, 0.0 } },
+    .{ .position = .{ -0.25, -0.75 }, .color = .{ 0.0, 1.0, 0.0 } },
+    .{ .position = .{ -0.5, -0.25 }, .color = .{ 0.0, 0.0, 1.0 } },
 };
 
-const square_vertices: []const Vertex = &[_]Vertex{
+const rectangle_vertices: []const Vertex = &[_]Vertex{
     .{ .position = .{ 0.25, 0.25 }, .color = .{ 0.0, 1.0, 1.0 } },
     .{ .position = .{ 0.25, 0.75 }, .color = .{ 0.0, 1.0, 1.0 } },
     .{ .position = .{ 0.75, 0.25 }, .color = .{ 0.0, 1.0, 1.0 } },
@@ -54,12 +55,18 @@ pub fn main() !void {
     const target = context.get_target();
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
-    const triangle_pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
+    const rectangle_buffer = try b.VertexBuffer.init(&context, Vertex, rectangle_vertices);
+
+    const pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
+
+    const triangle = o.RenderObject.init(&context, &triangle_buffer, &pipeline);
+    const rectangle = o.RenderObject.init(&context, &rectangle_buffer, &pipeline);
 
     while (!window.should_close()) {
         window.start_frame(&context);
         target.start(&context);
-        target.render(&context, &triangle_pipeline, &triangle_buffer);
+        target.render(&context, &triangle);
+        target.render(&context, &rectangle);
         target.end(&context);
         target.submit(&context);
 
@@ -67,6 +74,8 @@ pub fn main() !void {
         window.update();
     }
 
-    triangle_pipeline.deinit();
+    rectangle_buffer.deinit(&context);
+    triangle_buffer.deinit(&context);
+    pipeline.deinit();
     context.deinit();
 }

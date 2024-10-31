@@ -17,6 +17,4 @@ pub const NonePipeline = struct {
         return .{};
     }
     pub fn deinit(_: NonePipeline) void {}
-
-    pub fn bind(_: NonePipeline) void {}
 };

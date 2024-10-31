@@ -18,18 +18,12 @@ pub const VertexBuffer = union(context.API) {
                 },
             },
             .VULKAN => VertexBuffer{
-                .VULKAN = vulkan.VulkanVertexBuffer.init(),
+                .VULKAN = vulkan.VulkanVertexBuffer.init(&ctx.VULKAN, T, data),
             },
             .NONE => VertexBuffer{
                 .NONE = none.NoneVertexBuffer.init(),
             },
         };
-    }
-
-    pub fn bind(self: VertexBuffer) void {
-        switch (self) {
-            inline else => |case| case.bind(),
-        }
     }
 
     pub fn set_data(self: VertexBuffer, comptime T: anytype, data: []const T) void {
@@ -38,15 +32,17 @@ pub const VertexBuffer = union(context.API) {
         }
     }
 
-    pub fn unbind(self: VertexBuffer) void {
-        switch (self) {
-            inline else => |case| case.unbind(),
-        }
-    }
-
     pub fn get_layout(self: VertexBuffer) types.BufferLayout {
         return switch (self) {
             inline else => |case| case.get_layout(),
+        };
+    }
+
+    pub fn deinit(self: VertexBuffer, ctx: *const context.Context) void {
+        return switch (self) {
+            .OPEN_GL => self.OPEN_GL.deinit(),
+            .VULKAN => self.VULKAN.deinit(&ctx.VULKAN),
+            .NONE => self.NONE.deinit(),
         };
     }
 };

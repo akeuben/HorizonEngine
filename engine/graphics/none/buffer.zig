@@ -14,4 +14,6 @@ pub const NoneVertexBuffer = struct {
     pub fn get_layout(_: NoneVertexBuffer) types.BufferLayout {
         return undefined;
     }
+
+    pub fn deinit(_: NoneVertexBuffer) void {}
 };

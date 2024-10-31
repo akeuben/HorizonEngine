@@ -5,6 +5,7 @@ const none = @import("none/target.zig");
 const context = @import("context.zig");
 const VertexBuffer = @import("buffer.zig").VertexBuffer;
 const Pipeline = @import("shader.zig").Pipeline;
+const RenderObject = @import("object.zig").RenderObject;
 const log = @import("../utils/log.zig");
 
 pub const RenderTarget = union(context.API) {
@@ -34,11 +35,11 @@ pub const RenderTarget = union(context.API) {
         }
     }
 
-    pub fn render(self: *const RenderTarget, ctx: *const context.Context, pipeline: *const Pipeline, buffer: *const VertexBuffer) void {
+    pub fn render(self: *const RenderTarget, ctx: *const context.Context, object: *const RenderObject) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLRenderTarget.render(self.OPEN_GL, &ctx.OPEN_GL, &pipeline.OPEN_GL, &buffer.OPEN_GL),
-            .VULKAN => vulkan.VulkanRenderTarget.render(self.VULKAN, &ctx.VULKAN, &pipeline.VULKAN, &buffer.VULKAN),
-            .NONE => none.NoneRenderTarget.render(self.NONE, &ctx.NONE, &pipeline.NONE, &buffer.NONE),
+            .OPEN_GL => opengl.OpenGLRenderTarget.render(self.OPEN_GL, &ctx.OPEN_GL, &object.OPEN_GL),
+            .VULKAN => vulkan.VulkanRenderTarget.render(self.VULKAN, &ctx.VULKAN, &object.VULKAN),
+            .NONE => none.NoneRenderTarget.render(self.NONE, &ctx.NONE, &object.NONE),
         }
     }
 

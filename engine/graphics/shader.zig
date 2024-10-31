@@ -124,10 +124,4 @@ pub const Pipeline = union(context.API) {
             inline else => |case| case.deinit(),
         }
     }
-
-    pub fn bind(self: Pipeline) void {
-        switch (self) {
-            inline else => |case| case.bind(),
-        }
-    }
 };

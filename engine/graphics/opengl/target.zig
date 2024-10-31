@@ -2,6 +2,7 @@ const std = @import("std");
 const context = @import("context.zig");
 const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
+const OpenGLRenderObject = @import("object.zig").OpenGLRenderObject;
 const gl = @import("gl");
 const log = @import("../../utils/log.zig");
 
@@ -22,11 +23,10 @@ pub const OpenGLRenderTarget = struct {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
-    pub fn render(self: *const OpenGLRenderTarget, _: *const context.OpenGLContext, pipeline: *const OpenGLPipeline, buffer: *const OpenGLVertexBuffer) void {
+    pub fn render(self: *const OpenGLRenderTarget, _: *const context.OpenGLContext, object: *const OpenGLRenderObject) void {
         gl.bindFramebuffer(gl.FRAMEBUFFER, self.framebuffer);
-        pipeline.bind();
-        buffer.bind();
-        gl.drawArrays(gl.TRIANGLES, 0, @intCast(buffer.layout.length));
+        gl.bindVertexArray(object.gl_array);
+        gl.drawArrays(gl.TRIANGLES, 0, @intCast(object.layout.length));
     }
 
     pub fn end(_: *const OpenGLRenderTarget, _: *const context.OpenGLContext) void {}

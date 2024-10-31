@@ -20,9 +20,9 @@ pub extern fn glfwGetInstanceProcAddress(instance: vk.Instance, procname: [*:0]c
 pub extern fn glfwGetPhysicalDevicePresentationSupport(instance: vk.Instance, pdev: vk.PhysicalDevice, queuefamily: u32) c_int;
 pub extern fn glfwCreateWindowSurface(instance: vk.Instance, window: *glfw.GLFWwindow, allocation_callbacks: ?*const vk.AllocationCallbacks, surface: *vk.SurfaceKHR) vk.Result;
 
-fn resize_callback(glfw_window: ?*glfw.GLFWwindow, _: i32, _: i32) callconv(.C) void {
+fn resize_callback(glfw_window: ?*glfw.GLFWwindow, width: i32, height: i32) callconv(.C) void {
     const window: ?*DesktopWindow = @ptrCast(@alignCast(glfw.glfwGetWindowUserPointer(glfw_window)));
-    window.?.context.notify_resized();
+    window.?.context.notify_resized(.{ width, height });
 }
 
 pub const DesktopWindow = struct {
