@@ -1,6 +1,5 @@
 const std = @import("std");
 const vendor = @import("../vendor/build.zig");
-const libraries = @import("../lib/build.zig");
 
 const GL_VERSION = "GL_VERSION_4_3";
 const GL_EXTENSIONS: []const []const u8 = &.{"GL_ARB_gl_spirv"};
@@ -12,7 +11,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
 
     // Dependencies
     const zm = b.dependency("zm", .{});
-    const vma = libraries.vma.build_vma(b, target, optimize);
+    const vma = vendor.vma.build_vma(b, target, optimize);
     const glfw = vendor.glfw.build_glfw(b, target, optimize);
     const vulkan_zig = vendor.vulkan_zig.build_vulkan_zig(b);
     const zig_opengl = vendor.zig_opengl.build_zig_opengl(b, target, optimize, .{
@@ -31,7 +30,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     // Link C Libraries
     lib.addIncludePath(vendor.glfw.get_include_path(b));
     lib.linkLibrary(glfw);
-    lib.addIncludePath(libraries.vma.get_include_path(b));
+    lib.addIncludePath(vendor.vma.get_include_path(b));
     lib.linkLibrary(vma);
 
     // Link Zig Libraries
