@@ -95,6 +95,7 @@ pub const Swapchain = struct {
         swapchain.current_frame = 0;
         swapchain.allocator = allocator;
         swapchain.resized = false;
+        swapchain.swapchain = .null_handle;
 
         try create_swapchain(&swapchain, ctx, window.get_size_pixels());
         try create_image_views(&swapchain, ctx);
@@ -165,7 +166,7 @@ pub const Swapchain = struct {
             },
             .present_mode = present_mode,
             .clipped = vk.TRUE,
-            .old_swapchain = .null_handle,
+            .old_swapchain = self.swapchain,
         };
 
         self.swapchain = try ctx.logical_device.device.createSwapchainKHR(&create_info, null);
@@ -209,9 +210,10 @@ pub const Swapchain = struct {
         for (self.image_views) |view| {
             ctx.logical_device.device.destroyImageView(view, null);
         }
-        ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
+        const old_swapchain = self.swapchain;
 
         try create_swapchain(self, ctx, size);
+        ctx.logical_device.device.destroySwapchainKHR(old_swapchain, null);
         try create_image_views(self, ctx);
     }
 
