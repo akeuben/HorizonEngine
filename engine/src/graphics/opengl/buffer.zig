@@ -43,3 +43,35 @@ pub const OpenGLVertexBuffer = struct {
         gl.deleteBuffers(1, &self.gl_buffer);
     }
 };
+
+pub const OpenGLIndexBuffer = struct {
+    gl_buffer: u32,
+    count: u32,
+
+    pub fn init(data: []const u32) types.ShaderTypeError!OpenGLIndexBuffer {
+        var gl_buffer: u32 = 0;
+        gl.genBuffers(1, &gl_buffer);
+        log.debug("Generated buffer {} count: {}", .{ gl_buffer, data.len });
+
+        var buffer = OpenGLIndexBuffer{
+            .gl_buffer = gl_buffer,
+            .count = @intCast(data.len),
+        };
+        buffer.set_data(data) catch |e| {
+            return e;
+        };
+
+        return buffer;
+    }
+
+    pub inline fn set_data(self: *OpenGLIndexBuffer, data: []const u32) types.ShaderTypeError!void {
+        self.count = @intCast(data.len);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.gl_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, @intCast(data.len * @sizeOf(u32)), data.ptr, gl.STATIC_DRAW);
+        log.debug("Buffer data loaded into buffer {} ", .{self.gl_buffer});
+    }
+
+    pub fn deinit(self: OpenGLIndexBuffer) void {
+        gl.deleteBuffers(1, &self.gl_buffer);
+    }
+};

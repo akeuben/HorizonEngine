@@ -19,13 +19,13 @@ const triangle_vertices: []const Vertex = &[_]Vertex{
 };
 
 const rectangle_vertices: []const Vertex = &[_]Vertex{
-    .{ .position = .{ 0.25, 0.25 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.25, 0.75 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.75, 0.25 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.75, 0.25 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.25, 0.75 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.75, 0.75 }, .color = .{ 0.0, 1.0, 1.0 } },
+    .{ .position = .{ 0.25, 0.25 }, .color = .{ 0, 1, 1 } },
+    .{ .position = .{ 0.25, 0.75 }, .color = .{ 1, 0, 1 } },
+    .{ .position = .{ 0.75, 0.25 }, .color = .{ 0, 1, 1 } },
+    .{ .position = .{ 0.75, 0.75 }, .color = .{ 1, 0, 0 } },
 };
+
+const renctangle_indices: []const u32 = &[_]u32{ 0, 1, 2, 2, 1, 3 };
 
 const Vertex = extern struct {
     position: zm.Vec2f,
@@ -56,11 +56,12 @@ pub fn main() !void {
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
     const rectangle_buffer = try b.VertexBuffer.init(&context, Vertex, rectangle_vertices);
+    const rectangle_index_buffer = try b.IndexBuffer.init(&context, renctangle_indices);
 
     const pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
 
-    const triangle = o.RenderObject.init(&context, &triangle_buffer, &pipeline);
-    const rectangle = o.RenderObject.init(&context, &rectangle_buffer, &pipeline);
+    const triangle = o.RenderObject.init(&context, &pipeline, &triangle_buffer, null);
+    const rectangle = o.RenderObject.init(&context, &pipeline, &rectangle_buffer, &rectangle_index_buffer);
 
     while (!window.should_close()) {
         window.start_frame(&context);
@@ -74,6 +75,7 @@ pub fn main() !void {
         window.update();
     }
 
+    rectangle_index_buffer.deinit(&context);
     rectangle_buffer.deinit(&context);
     triangle_buffer.deinit(&context);
     pipeline.deinit();

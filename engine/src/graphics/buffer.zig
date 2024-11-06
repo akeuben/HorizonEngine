@@ -46,3 +46,39 @@ pub const VertexBuffer = union(context.API) {
         };
     }
 };
+
+pub const IndexBuffer = union(context.API) {
+    OPEN_GL: opengl.OpenGLIndexBuffer,
+    VULKAN: vulkan.VulkanIndexBuffer,
+    NONE: none.NoneIndexBuffer,
+
+    pub fn init(ctx: *const context.Context, data: []const u32) types.ShaderTypeError!IndexBuffer {
+        return switch (ctx.*) {
+            .OPEN_GL => IndexBuffer{
+                .OPEN_GL = opengl.OpenGLIndexBuffer.init(data) catch |e| {
+                    return e;
+                },
+            },
+            .VULKAN => IndexBuffer{
+                .VULKAN = vulkan.VulkanIndexBuffer.init(&ctx.VULKAN, data),
+            },
+            .NONE => IndexBuffer{
+                .NONE = none.NoneIndexBuffer.init(),
+            },
+        };
+    }
+
+    pub fn set_data(self: IndexBuffer, data: []const u32) void {
+        switch (self) {
+            inline else => |case| case.set_data(data),
+        }
+    }
+
+    pub fn deinit(self: IndexBuffer, ctx: *const context.Context) void {
+        return switch (self) {
+            .OPEN_GL => self.OPEN_GL.deinit(),
+            .VULKAN => self.VULKAN.deinit(&ctx.VULKAN),
+            .NONE => self.NONE.deinit(),
+        };
+    }
+};

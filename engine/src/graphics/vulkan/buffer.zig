@@ -96,3 +96,49 @@ pub const VulkanVertexBuffer = struct {
         ctx.allocator.destroy_buffer(self.vk_buffer.?);
     }
 };
+
+pub const VulkanIndexBuffer = struct {
+    vk_buffer: ?allocator.AllocatedVulkanBuffer,
+    count: u32,
+
+    pub fn init(ctx: *const context.VulkanContext, data: []const u32) VulkanIndexBuffer {
+        var buffer = VulkanIndexBuffer{
+            .vk_buffer = undefined,
+            .count = @intCast(data.len),
+        };
+
+        buffer.set_data(ctx, data);
+
+        return buffer;
+    }
+
+    pub fn set_data(self: *VulkanIndexBuffer, ctx: *const context.VulkanContext, data: []const u32) void {
+        if (self.vk_buffer != null) {
+            self.deinit(ctx);
+        }
+        self.count = @intCast(data.len);
+        const buffer_size: vk.DeviceSize = @sizeOf(u32) * data.len;
+
+        const staging_buffer = ctx.allocator.create_buffer(buffer_size, .{ .transfer_src_bit = true }, .{ .host_visible_bit = true, .host_coherent_bit = true });
+
+        const map_ptr = ctx.allocator.map_buffer(u32, staging_buffer);
+        @memcpy(@as([*]u32, @alignCast(@ptrCast(map_ptr))), data);
+        ctx.allocator.unmap_buffer(staging_buffer);
+
+        self.vk_buffer = ctx.allocator.create_buffer(buffer_size, .{ .transfer_dst_bit = true, .index_buffer_bit = true }, .{ .device_local_bit = true });
+
+        copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
+
+        ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
+        ctx.allocator.destroy_buffer(staging_buffer);
+    }
+
+    pub fn get_layout(self: VulkanIndexBuffer) types.BufferLayout {
+        return self.layout;
+    }
+
+    pub fn deinit(self: VulkanIndexBuffer, ctx: *const context.VulkanContext) void {
+        ctx.logical_device.device.deviceWaitIdle() catch {};
+        ctx.allocator.destroy_buffer(self.vk_buffer.?);
+    }
+};

@@ -247,12 +247,17 @@ pub const SwapchainVulkanRenderTarget = struct {
 
         ctx.logical_device.device.cmdBindPipeline(self.command_buffers[ctx.swapchain.current_frame], .graphics, object.pipeline);
 
-        const buffers: []const vk.Buffer = &.{object.buffer};
+        const buffers: []const vk.Buffer = &.{object.vertex_buffer};
         const offsets: []const vk.DeviceSize = &.{0};
 
         ctx.logical_device.device.cmdBindVertexBuffers(self.command_buffers[ctx.swapchain.current_frame], 0, 1, @ptrCast(buffers.ptr), @ptrCast(offsets.ptr));
 
-        ctx.logical_device.device.cmdDraw(self.command_buffers[ctx.swapchain.current_frame], @intCast(object.layout.length), 1, 0, 0);
+        if (object.count == 0) {
+            ctx.logical_device.device.cmdDraw(self.command_buffers[ctx.swapchain.current_frame], @intCast(object.layout.length), 1, 0, 0);
+        } else {
+            ctx.logical_device.device.cmdBindIndexBuffer(self.command_buffers[ctx.swapchain.current_frame], object.index_buffer.?, 0, .uint32);
+            ctx.logical_device.device.cmdDrawIndexed(self.command_buffers[ctx.swapchain.current_frame], @intCast(object.count), 1, 0, 0, 0);
+        }
     }
 
     pub fn end(self: *const SwapchainVulkanRenderTarget, ctx: *const context.VulkanContext) void {

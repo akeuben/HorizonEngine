@@ -26,6 +26,11 @@ pub const OpenGLRenderTarget = struct {
     pub fn render(self: *const OpenGLRenderTarget, _: *const context.OpenGLContext, object: *const OpenGLRenderObject) void {
         gl.bindFramebuffer(gl.FRAMEBUFFER, self.framebuffer);
         gl.bindVertexArray(object.gl_array);
+        if (object.count == 0) {
+            gl.drawArrays(gl.TRIANGLES, 0, @intCast(object.layout.length));
+        } else {
+            gl.drawElements(gl.TRIANGLES, @intCast(object.count), gl.UNSIGNED_INT, null);
+        }
         gl.drawArrays(gl.TRIANGLES, 0, @intCast(object.layout.length));
     }
 
