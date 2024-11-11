@@ -1,6 +1,3 @@
-Merge SwapchainVulkanRenderTarget into Swapchain
-- They are very similar in what they do, and combining them will result in less "sphagetti"
-
 Add shader uniform support
 - 
 

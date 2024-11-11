@@ -12,7 +12,6 @@ const swapchain = @import("swapchain.zig");
 const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
 const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
-const SwapchainVulkanRenderTarget = @import("target.zig").SwapchainVulkanRenderTarget;
 const allocator = @import("allocator.zig");
 
 const apis: []const vk.ApiInfo = &.{
@@ -45,8 +44,9 @@ pub const VulkanContext = struct {
     present_queue: vk.Queue,
 
     swapchain: swapchain.Swapchain,
-    target: VulkanRenderTarget,
     command_pool: vk.CommandPool,
+
+    target: *VulkanRenderTarget,
 
     pub fn init() VulkanContext {
         return undefined;
@@ -118,12 +118,6 @@ pub const VulkanContext = struct {
         self.present_queue = queue.get_present_queue(self, 0);
         log.debug("Created queues", .{});
 
-        self.swapchain = swapchain.Swapchain.init(self, window, std.heap.page_allocator) catch {
-            log.fatal("Failed to create swapchain", .{});
-            std.process.exit(1);
-        };
-        log.debug("Created swapchain", .{});
-
         const queues = queue.find_queue_families(self, self.physical_device.device) catch {
             log.fatal("Failed to find queue families", .{});
             std.process.exit(1);
@@ -139,18 +133,25 @@ pub const VulkanContext = struct {
         };
         log.debug("Created command pool", .{});
 
-        self.target = VulkanRenderTarget{
-            .DEFAULT = SwapchainVulkanRenderTarget.init(self, std.heap.page_allocator) catch {
-                log.fatal("Failed to create default render target", .{});
-                std.process.exit(1);
-            },
+        self.swapchain = swapchain.Swapchain.init(self, window, std.heap.page_allocator) catch {
+            log.fatal("Failed to create swapchain", .{});
+            std.process.exit(1);
+        };
+        log.debug("Created swapchain", .{});
+
+        self.target = @ptrCast(std.heap.page_allocator.alloc(VulkanRenderTarget, 1) catch {
+            log.fatal("Failed to create vulkan render target", .{});
+            std.process.exit(1);
+        });
+        self.target.* = .{
+            .SWAPCHAIN = &self.swapchain,
         };
         log.debug("Created vulkan default render target", .{});
     }
 
     pub fn get_target(self: *VulkanContext) *VulkanRenderTarget {
         if (!self.loaded) log.fatal("Tried to access a context that has not been loaded!", .{});
-        return &self.target;
+        return self.target;
     }
 
     pub fn notify_resized(self: *VulkanContext) void {
@@ -159,7 +160,7 @@ pub const VulkanContext = struct {
 
     pub fn deinit(self: VulkanContext) void {
         self.logical_device.device.deviceWaitIdle() catch {};
-        self.target.deinit(&self);
+        std.heap.page_allocator.destroy(self.target);
         self.logical_device.device.destroyCommandPool(self.command_pool, null);
         self.swapchain.deinit(&self);
         self.logical_device.deinit();
