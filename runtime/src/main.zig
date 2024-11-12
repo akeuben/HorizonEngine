@@ -55,19 +55,19 @@ pub fn main() !void {
     const target = context.get_target();
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
-    //const rectangle_buffer = try b.VertexBuffer.init(&context, Vertex, rectangle_vertices);
-    //const rectangle_index_buffer = try b.IndexBuffer.init(&context, renctangle_indices);
+    const rectangle_buffer = try b.VertexBuffer.init(&context, Vertex, rectangle_vertices);
+    const rectangle_index_buffer = try b.IndexBuffer.init(&context, renctangle_indices);
 
     const pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
 
     var triangle = o.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();
-    //const rectangle = o.RenderObject.init(&context, &pipeline, &rectangle_buffer, &rectangle_index_buffer);
+    const rectangle = o.IndexRenderObject.init(&context, &pipeline, &rectangle_buffer, &rectangle_index_buffer).object();
 
     while (!window.should_close()) {
         window.start_frame(&context);
         target.start(&context);
         target.render(&context, &triangle);
-        //target.render(&context, &rectangle);
+        target.render(&context, &rectangle);
         target.end(&context);
         target.submit(&context);
 
@@ -75,8 +75,8 @@ pub fn main() !void {
         window.update();
     }
 
-    //rectangle_index_buffer.deinit(&context);
-    //rectangle_buffer.deinit(&context);
+    rectangle_index_buffer.deinit(&context);
+    rectangle_buffer.deinit(&context);
     triangle_buffer.deinit(&context);
     pipeline.deinit();
     context.deinit();

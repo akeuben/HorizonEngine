@@ -63,3 +63,35 @@ pub const VertexRenderObject = union(context.API) {
         return RenderObject.init(self);
     }
 };
+
+pub const IndexRenderObject = union(context.API) {
+    OPEN_GL: opengl.OpenGLIndexRenderObject,
+    VULKAN: vulkan.VulkanIndexRenderObject,
+    NONE: none.NoneIndexRenderObject,
+
+    pub fn init(ctx: *const context.Context, pipeline: *const shader.Pipeline, vertices: *const buffer.VertexBuffer, indices: *const buffer.IndexBuffer) IndexRenderObject {
+        return switch (ctx.*) {
+            .OPEN_GL => .{
+                .OPEN_GL = opengl.OpenGLIndexRenderObject.init(&ctx.OPEN_GL, &pipeline.OPEN_GL, &vertices.OPEN_GL, &indices.OPEN_GL),
+            },
+            .VULKAN => .{
+                .VULKAN = vulkan.VulkanIndexRenderObject.init(&ctx.VULKAN, &pipeline.VULKAN, &vertices.VULKAN, &indices.VULKAN),
+            },
+            .NONE => .{
+                .NONE = none.NoneIndexRenderObject.init(&ctx.NONE, &pipeline.NONE, &vertices.NONE, &indices.NONE),
+            },
+        };
+    }
+
+    pub fn draw(self: *const IndexRenderObject, ctx: *const context.Context, target: *const RenderTarget) void {
+        switch (self.*) {
+            .OPEN_GL => self.OPEN_GL.draw(&ctx.OPEN_GL, &target.OPEN_GL),
+            .VULKAN => self.VULKAN.draw(&ctx.VULKAN, &target.VULKAN),
+            .NONE => self.NONE.draw(&ctx.NONE, &target.NONE),
+        }
+    }
+
+    pub fn object(self: *const IndexRenderObject) RenderObject {
+        return RenderObject.init(self);
+    }
+};
