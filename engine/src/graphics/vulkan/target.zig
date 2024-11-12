@@ -3,15 +3,16 @@ const context = @import("context.zig");
 const vk = @import("vulkan");
 const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
-const VulkanRenderObject = @import("object.zig").VulkanRenderObject;
+const RenderObject = @import("../object.zig").RenderObject;
 const log = @import("../../utils/log.zig");
 const swapchain = @import("swapchain.zig");
+const RenderTarget = @import("../target.zig").RenderTarget;
 
 pub const VulkanRenderTarget = union(enum) {
-    SWAPCHAIN: *swapchain.Swapchain,
-    OTHER: *OtherVulkanRenderTarget,
+    SWAPCHAIN: *const swapchain.Swapchain,
+    OTHER: *const OtherVulkanRenderTarget,
 
-    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !*VulkanRenderTarget {
+    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !VulkanRenderTarget {
         return VulkanRenderTarget{
             .OTHER = try OtherVulkanRenderTarget.init(ctx, allocator),
         };
@@ -29,7 +30,7 @@ pub const VulkanRenderTarget = union(enum) {
         }
     }
 
-    pub fn render(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext, object: *const VulkanRenderObject) void {
+    pub fn render(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext, object: *const RenderObject) void {
         switch (self.*) {
             inline else => |case| case.render(ctx, object),
         }
@@ -52,12 +53,18 @@ pub const VulkanRenderTarget = union(enum) {
             inline else => |case| case.deinit(ctx),
         }
     }
+
+    pub fn get_current_commandbuffer(self: VulkanRenderTarget) vk.CommandBuffer {
+        return switch (self) {
+            inline else => |case| case.get_current_commandbuffer(),
+        };
+    }
 };
 
 pub const OtherVulkanRenderTarget = struct {
     renderpass: vk.RenderPass,
 
-    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !*OtherVulkanRenderTarget {
+    pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !OtherVulkanRenderTarget {
         const attachment_description = vk.AttachmentDescription{
             .format = ctx.swapchain.format,
             .samples = .{ .@"1_bit" = true },
@@ -89,9 +96,9 @@ pub const OtherVulkanRenderTarget = struct {
 
         const renderpass = try ctx.logical_device.device.createRenderPass(&renderpass_create_info, null);
 
-        const target = try allocator.create(OtherVulkanRenderTarget);
-        target.renderpass = renderpass;
-        return target;
+        const t = try allocator.create(OtherVulkanRenderTarget);
+        t.renderpass = renderpass;
+        return t;
     }
 
     pub fn get_renderpass(self: OtherVulkanRenderTarget) vk.RenderPass {
@@ -99,12 +106,24 @@ pub const OtherVulkanRenderTarget = struct {
     }
 
     pub fn start(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
-    pub fn render(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext, _: *const VulkanRenderObject) void {}
+    pub fn render(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext, _: *const RenderObject) void {}
 
     pub fn end(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
     pub fn submit(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
 
     pub fn deinit(self: OtherVulkanRenderTarget, ctx: *const context.VulkanContext) void {
         ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
+    }
+
+    pub fn get_current_commandbuffer(_: OtherVulkanRenderTarget) vk.CommandBuffer {
+        return undefined;
+    }
+
+    pub fn target(self: *const OtherVulkanRenderTarget) RenderTarget {
+        return .{
+            .VULKAN = .{
+                .OTHER = self,
+            },
+        };
     }
 };

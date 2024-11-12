@@ -4,6 +4,7 @@ const log = @import("../../utils/log.zig");
 const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
 const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLRenderTarget = @import("target.zig").OpenGLRenderTarget;
+const Context = @import("../context.zig").Context;
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
     log.debug("A GL error occurred.", .{});
@@ -52,8 +53,13 @@ pub const OpenGLContext = struct {
         gl.viewport(0, 0, new_size[0], new_size[1]);
     }
 
-    pub fn get_target(self: *OpenGLContext) *OpenGLRenderTarget {
-        log.debug("GL MODE", .{});
-        return &self.target;
+    pub fn get_target(self: *OpenGLContext) OpenGLRenderTarget {
+        return self.target;
+    }
+
+    pub fn context(self: OpenGLContext) Context {
+        return .{
+            .OPEN_GL = self,
+        };
     }
 };

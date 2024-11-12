@@ -74,6 +74,7 @@ pub const VulkanVertexBuffer = struct {
         const buffer_size: vk.DeviceSize = self.layout.size * data.len;
 
         const staging_buffer = ctx.allocator.create_buffer(buffer_size, .{ .transfer_src_bit = true }, .{ .host_visible_bit = true, .host_coherent_bit = true });
+        defer ctx.allocator.destroy_buffer(staging_buffer);
 
         const map_ptr = ctx.allocator.map_buffer(T, staging_buffer);
         @memcpy(@as([*]T, @alignCast(@ptrCast(map_ptr))), data);
@@ -84,7 +85,6 @@ pub const VulkanVertexBuffer = struct {
         copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
 
         ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
-        ctx.allocator.destroy_buffer(staging_buffer);
     }
 
     pub fn get_layout(self: VulkanVertexBuffer) types.BufferLayout {
@@ -92,6 +92,7 @@ pub const VulkanVertexBuffer = struct {
     }
 
     pub fn deinit(self: VulkanVertexBuffer, ctx: *const context.VulkanContext) void {
+        log.debug("Deinit vertex buffer", .{});
         ctx.logical_device.device.deviceWaitIdle() catch {};
         ctx.allocator.destroy_buffer(self.vk_buffer.?);
     }
@@ -120,6 +121,7 @@ pub const VulkanIndexBuffer = struct {
         const buffer_size: vk.DeviceSize = @sizeOf(u32) * data.len;
 
         const staging_buffer = ctx.allocator.create_buffer(buffer_size, .{ .transfer_src_bit = true }, .{ .host_visible_bit = true, .host_coherent_bit = true });
+        defer ctx.allocator.destroy_buffer(staging_buffer);
 
         const map_ptr = ctx.allocator.map_buffer(u32, staging_buffer);
         @memcpy(@as([*]u32, @alignCast(@ptrCast(map_ptr))), data);
@@ -130,7 +132,6 @@ pub const VulkanIndexBuffer = struct {
         copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
 
         ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
-        ctx.allocator.destroy_buffer(staging_buffer);
     }
 
     pub fn get_layout(self: VulkanIndexBuffer) types.BufferLayout {
@@ -138,6 +139,7 @@ pub const VulkanIndexBuffer = struct {
     }
 
     pub fn deinit(self: VulkanIndexBuffer, ctx: *const context.VulkanContext) void {
+        log.debug("Deinit index buffer", .{});
         ctx.logical_device.device.deviceWaitIdle() catch {};
         ctx.allocator.destroy_buffer(self.vk_buffer.?);
     }

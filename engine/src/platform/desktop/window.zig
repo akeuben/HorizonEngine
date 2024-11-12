@@ -84,7 +84,7 @@ pub const DesktopWindow = struct {
                     } else |err| switch (err) {
                         VulkanSwapchain.AcquireImageError.OutOfDateSwapchain => {
                             // Recreate the swapchain
-                            context.VULKAN.target.SWAPCHAIN.resize(&context.VULKAN, self.get_size_pixels());
+                            context.VULKAN.swapchain.resize(&context.VULKAN, self.get_size_pixels());
                         },
                         else => {
                             log.fatal("Failed to acquire swapchain image.", .{});

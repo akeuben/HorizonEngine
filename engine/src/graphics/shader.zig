@@ -100,7 +100,7 @@ pub const Pipeline = union(context.API) {
                 },
             },
             .VULKAN => Pipeline{
-                .VULKAN = vulkan.VulkanPipeline.init(&ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, target.VULKAN) catch {
+                .VULKAN = vulkan.VulkanPipeline.init(&ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &target.VULKAN) catch {
                     return ShaderError.LinkingError;
                 },
             },

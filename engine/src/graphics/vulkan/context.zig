@@ -13,6 +13,7 @@ const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
 const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
 const allocator = @import("allocator.zig");
+const Context = @import("../context.zig").Context;
 
 const apis: []const vk.ApiInfo = &.{
     vk.features.version_1_0,
@@ -46,7 +47,7 @@ pub const VulkanContext = struct {
     swapchain: swapchain.Swapchain,
     command_pool: vk.CommandPool,
 
-    target: *VulkanRenderTarget,
+    target: VulkanRenderTarget,
 
     pub fn init() VulkanContext {
         return undefined;
@@ -139,17 +140,13 @@ pub const VulkanContext = struct {
         };
         log.debug("Created swapchain", .{});
 
-        self.target = @ptrCast(std.heap.page_allocator.alloc(VulkanRenderTarget, 1) catch {
-            log.fatal("Failed to create vulkan render target", .{});
-            std.process.exit(1);
-        });
-        self.target.* = .{
+        self.target = .{
             .SWAPCHAIN = &self.swapchain,
         };
         log.debug("Created vulkan default render target", .{});
     }
 
-    pub fn get_target(self: *VulkanContext) *VulkanRenderTarget {
+    pub fn get_target(self: *VulkanContext) VulkanRenderTarget {
         if (!self.loaded) log.fatal("Tried to access a context that has not been loaded!", .{});
         return self.target;
     }
@@ -159,8 +156,8 @@ pub const VulkanContext = struct {
     }
 
     pub fn deinit(self: VulkanContext) void {
+        self.allocator.deinit();
         self.logical_device.device.deviceWaitIdle() catch {};
-        std.heap.page_allocator.destroy(self.target);
         self.logical_device.device.destroyCommandPool(self.command_pool, null);
         self.swapchain.deinit(&self);
         self.logical_device.deinit();
@@ -168,5 +165,11 @@ pub const VulkanContext = struct {
         self.instance.instance.destroySurfaceKHR(self.surface, null);
 
         self.instance.deinit();
+    }
+
+    pub fn context(self: VulkanContext) Context {
+        return .{
+            .VULKAN = self,
+        };
     }
 };

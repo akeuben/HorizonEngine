@@ -4,23 +4,62 @@ const vulkan = @import("vulkan/object.zig");
 const none = @import("none/object.zig");
 const shader = @import("shader.zig");
 const buffer = @import("buffer.zig");
+const RenderTarget = @import("target.zig").RenderTarget;
 
-pub const RenderObject = union(context.API) {
-    OPEN_GL: opengl.OpenGLRenderObject,
-    VULKAN: vulkan.VulkanRenderObject,
-    NONE: none.NoneRenderObject,
+pub const RenderObject = struct {
+    ptr: *const anyopaque,
+    drawFn: *const fn (ptr: *const anyopaque, ctx: *const context.Context, target: *const RenderTarget) void,
 
-    pub fn init(ctx: *const context.Context, pipeline: *const shader.Pipeline, vertex_buffer: *const buffer.VertexBuffer, index_buffer: ?*const buffer.IndexBuffer) RenderObject {
+    fn init(ptr: anytype) RenderObject {
+        const T = @TypeOf(ptr);
+        const ptr_info = @typeInfo(T);
+
+        const gen = struct {
+            pub fn draw(pointer: *const anyopaque, ctx: *const context.Context, target: *const RenderTarget) void {
+                const self: T = @ptrCast(@alignCast(pointer));
+                return @call(.always_inline, ptr_info.pointer.child.draw, .{ self, ctx, target });
+            }
+        };
+
+        return .{
+            .ptr = ptr,
+            .drawFn = gen.draw,
+        };
+    }
+
+    pub fn draw(self: *const RenderObject, ctx: *const context.Context, target: *const RenderTarget) void {
+        return self.drawFn(self.ptr, ctx, target);
+    }
+};
+
+pub const VertexRenderObject = union(context.API) {
+    OPEN_GL: opengl.OpenGLVertexRenderObject,
+    VULKAN: vulkan.VulkanVertexRenderObject,
+    NONE: none.NoneVertexRenderObject,
+
+    pub fn init(ctx: *const context.Context, pipeline: *const shader.Pipeline, vertices: *const buffer.VertexBuffer) VertexRenderObject {
         return switch (ctx.*) {
-            .OPEN_GL => RenderObject{
-                .OPEN_GL = opengl.OpenGLRenderObject.init(&ctx.OPEN_GL, &pipeline.OPEN_GL, &vertex_buffer.OPEN_GL, if (index_buffer != null) &index_buffer.?.OPEN_GL else null),
+            .OPEN_GL => .{
+                .OPEN_GL = opengl.OpenGLVertexRenderObject.init(&ctx.OPEN_GL, &pipeline.OPEN_GL, &vertices.OPEN_GL),
             },
-            .VULKAN => RenderObject{
-                .VULKAN = vulkan.VulkanRenderObject.init(&ctx.VULKAN, &pipeline.VULKAN, &vertex_buffer.VULKAN, if (index_buffer != null) &index_buffer.?.VULKAN else null),
+            .VULKAN => .{
+                .VULKAN = vulkan.VulkanVertexRenderObject.init(&ctx.VULKAN, &pipeline.VULKAN, &vertices.VULKAN),
             },
-            .NONE => RenderObject{
-                .NONE = none.NoneRenderObject.init(&ctx.NONE, &vertex_buffer.NONE, &pipeline.NONE),
+            .NONE => .{
+                .NONE = none.NoneVertexRenderObject.init(&ctx.NONE, &pipeline.NONE, &vertices.NONE),
             },
         };
+    }
+
+    pub fn draw(self: *const VertexRenderObject, ctx: *const context.Context, target: *const RenderTarget) void {
+        switch (self.*) {
+            .OPEN_GL => self.OPEN_GL.draw(&ctx.OPEN_GL, &target.OPEN_GL),
+            .VULKAN => self.VULKAN.draw(&ctx.VULKAN, &target.VULKAN),
+            .NONE => self.NONE.draw(&ctx.NONE, &target.NONE),
+        }
+    }
+
+    pub fn object(self: *const VertexRenderObject) RenderObject {
+        return RenderObject.init(self);
     }
 };

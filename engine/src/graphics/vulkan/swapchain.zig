@@ -5,7 +5,8 @@ const Window = @import("../../platform/window.zig").Window;
 const queue = @import("queue.zig");
 const device = @import("device.zig");
 const log = @import("../../utils/log.zig");
-const VulkanRenderObject = @import("object.zig").VulkanRenderObject;
+const RenderObject = @import("../object.zig").RenderObject;
+const RenderTarget = @import("../target.zig").RenderTarget;
 
 pub const MAX_FRAMES_IN_FLIGHT: comptime_int = 2;
 
@@ -387,7 +388,7 @@ pub const Swapchain = struct {
         ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[self.current_frame], &pass_info, .@"inline");
     }
 
-    pub fn render(self: *const Swapchain, ctx: *const context.VulkanContext, object: *const VulkanRenderObject) void {
+    pub fn render(self: *const Swapchain, ctx: *const context.VulkanContext, object: *const RenderObject) void {
         const viewport = vk.Viewport{
             .x = 0,
             .y = @as(f32, @floatFromInt(self.extent.height)),
@@ -404,19 +405,7 @@ pub const Swapchain = struct {
         };
         ctx.logical_device.device.cmdSetScissor(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&scissor));
 
-        ctx.logical_device.device.cmdBindPipeline(self.command_buffers[self.current_frame], .graphics, object.pipeline);
-
-        const buffers: []const vk.Buffer = &.{object.vertex_buffer};
-        const offsets: []const vk.DeviceSize = &.{0};
-
-        ctx.logical_device.device.cmdBindVertexBuffers(self.command_buffers[self.current_frame], 0, 1, @ptrCast(buffers.ptr), @ptrCast(offsets.ptr));
-
-        if (object.count == 0) {
-            ctx.logical_device.device.cmdDraw(self.command_buffers[self.current_frame], @intCast(object.layout.length), 1, 0, 0);
-        } else {
-            ctx.logical_device.device.cmdBindIndexBuffer(self.command_buffers[self.current_frame], object.index_buffer.?, 0, .uint32);
-            ctx.logical_device.device.cmdDrawIndexed(self.command_buffers[self.current_frame], @intCast(object.count), 1, 0, 0, 0);
-        }
+        object.draw(&ctx.context(), &self.target());
     }
 
     pub fn end(self: *const Swapchain, ctx: *const context.VulkanContext) void {
@@ -487,7 +476,19 @@ pub const Swapchain = struct {
             ctx.logical_device.device.destroyImageView(view, null);
         }
         self.allocator.free(self.image_views);
-        self.allocator.free(self.images);
         ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
+        self.allocator.free(self.images);
+    }
+
+    pub fn get_current_commandbuffer(self: Swapchain) vk.CommandBuffer {
+        return self.command_buffers[self.current_frame];
+    }
+
+    pub fn target(self: *const Swapchain) RenderTarget {
+        return .{
+            .VULKAN = .{
+                .SWAPCHAIN = self,
+            },
+        };
     }
 };
