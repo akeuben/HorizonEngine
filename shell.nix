@@ -6,7 +6,7 @@
         zig.packages.x86_64-linux.master
         zls
         cmake
-        dotnet-sdk_7
+        dotnet-sdk_8
 
         # Vulkan
         vulkan-tools 
