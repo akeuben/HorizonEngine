@@ -46,7 +46,7 @@ pub fn build_glfw(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
     glfw.addIncludePath(b.path("vendor/glfw/include"));
     glfw.addCSourceFiles(.{ .files = glfw_files });
     glfw.addCSourceFiles(.{ .files = glfw_linux_files });
-    glfw.defineCMacro("_GLFW_X11", "1");
+    glfw.root_module.addCMacro("_GLFW_X11", "1");
     glfw.linkSystemLibrary("Xcursor");
 
     return glfw;

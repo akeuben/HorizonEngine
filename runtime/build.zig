@@ -11,7 +11,7 @@ pub fn build_runtime(b: *std.Build, target: std.Build.ResolvedTarget, optimize: 
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("engine", &engine_obj.root_module);
+    exe.root_module.addImport("engine", engine_obj.root_module);
 
     return exe;
 }

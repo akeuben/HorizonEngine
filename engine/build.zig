@@ -36,7 +36,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     // Link Zig Libraries
     lib.root_module.addImport("zm", zm.module("zm"));
     lib.root_module.addImport("vulkan", vulkan_zig);
-    lib.root_module.addImport("gl", &zig_opengl.root_module);
+    lib.root_module.addImport("gl", zig_opengl.root_module);
 
     // Link Options
     lib.root_module.addOptions("platform", options);
