@@ -1,1 +1,1 @@
-pub const window = @import("window.zig");
+pub const Window = @import("window.zig").Window;

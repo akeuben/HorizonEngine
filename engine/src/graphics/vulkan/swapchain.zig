@@ -388,9 +388,8 @@ pub const Swapchain = struct {
         };
 
         self.ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[self.current_frame], &pass_info, .@"inline");
-    }
 
-    pub fn render(self: *const Swapchain, object: *const RenderObject) void {
+        // Update viewport and scissor
         const viewport = vk.Viewport{
             .x = 0,
             .y = @as(f32, @floatFromInt(self.extent.height)),
@@ -406,8 +405,6 @@ pub const Swapchain = struct {
             .extent = self.extent,
         };
         self.ctx.logical_device.device.cmdSetScissor(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&scissor));
-
-        object.draw(&self.target());
     }
 
     pub fn end(self: *const Swapchain) void {
@@ -417,9 +414,7 @@ pub const Swapchain = struct {
             log.err("Failed to record command buffer", .{});
             return;
         };
-    }
 
-    pub fn submit(self: *const Swapchain) void {
         const wait_semaphores: []const vk.Semaphore = &.{self.image_available_semaphores[self.current_frame]};
         const wait_stages: vk.PipelineStageFlags = .{ .color_attachment_output_bit = true };
 

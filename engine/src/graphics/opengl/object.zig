@@ -19,17 +19,18 @@ pub const OpenGLVertexRenderObject = struct {
         gl.useProgram(pipeline.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer.gl_buffer);
 
-        for (vertex_buffer.layout.elements, 0..) |element, i| {
+        for (vertex_buffer.layout.?.elements, 0..) |element, i| {
             gl.enableVertexAttribArray(@intCast(i));
-            gl.vertexAttribPointer(@intCast(i), @intCast(element.length), gl.FLOAT, gl.FALSE, @intCast(vertex_buffer.layout.size), @ptrFromInt(element.offset));
+            gl.vertexAttribPointer(@intCast(i), @intCast(element.length), gl.FLOAT, gl.FALSE, @intCast(vertex_buffer.layout.?.size), @ptrFromInt(element.offset));
         }
         return .{
             .gl_array = gl_array,
-            .layout = vertex_buffer.layout,
+            .layout = vertex_buffer.layout.?,
         };
     }
 
-    pub fn draw(self: *const OpenGLVertexRenderObject, _: *const OpenGLRenderTarget) void {
+    pub fn draw(self: *const OpenGLVertexRenderObject, target: *const OpenGLRenderTarget) void {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
         gl.bindVertexArray(self.gl_array);
         gl.drawArrays(gl.TRIANGLES, 0, @intCast(self.layout.length));
     }
@@ -49,13 +50,13 @@ pub const OpenGLIndexRenderObject = struct {
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer.gl_buffer);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer.gl_buffer);
 
-        for (vertex_buffer.layout.elements, 0..) |element, i| {
+        for (vertex_buffer.layout.?.elements, 0..) |element, i| {
             gl.enableVertexAttribArray(@intCast(i));
-            gl.vertexAttribPointer(@intCast(i), @intCast(element.length), gl.FLOAT, gl.FALSE, @intCast(vertex_buffer.layout.size), @ptrFromInt(element.offset));
+            gl.vertexAttribPointer(@intCast(i), @intCast(element.length), gl.FLOAT, gl.FALSE, @intCast(vertex_buffer.layout.?.size), @ptrFromInt(element.offset));
         }
         return .{
             .gl_array = gl_array,
-            .layout = vertex_buffer.layout,
+            .layout = vertex_buffer.layout.?,
             .count = index_buffer.count,
         };
     }

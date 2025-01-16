@@ -53,48 +53,46 @@ pub const VulkanVertexBuffer = struct {
     vk_buffer: ?allocator.AllocatedVulkanBuffer,
 
     pub fn init(ctx: *const context.VulkanContext, comptime T: anytype, data: []const T) VulkanVertexBuffer {
-        const layout = types.generate_layout(T, data) catch {
-            log.fatal("Failed to generate layout of vertex buffer", .{});
-            unreachable;
-        };
+        var buffer: VulkanVertexBuffer = undefined;
+        buffer.ctx = ctx;
+        buffer.vk_buffer = null;
 
-        var buffer = VulkanVertexBuffer{
-            .layout = layout,
-            .ctx = ctx,
-            .vk_buffer = undefined,
-        };
-
-        buffer.set_data(ctx, T, data);
+        buffer.set_data(T, data);
 
         return buffer;
     }
 
-    pub fn set_data(self: *VulkanVertexBuffer, ctx: *const context.VulkanContext, comptime T: anytype, data: []const T) void {
+    pub fn set_data(self: *VulkanVertexBuffer, comptime T: anytype, data: []const T) void {
         if (self.vk_buffer != null) {
             self.deinit();
         }
+        self.layout = types.generate_layout(T, data, self.ctx.allocator) catch {
+            log.fatal("Failed to generate layout of vertex buffer", .{});
+            unreachable;
+        };
         const buffer_size: vk.DeviceSize = self.layout.size * data.len;
 
-        const staging_buffer = ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_src_bit = true }, .{ .host_visible_bit = true, .host_coherent_bit = true });
-        defer ctx.vk_allocator.destroy_buffer(staging_buffer);
+        const staging_buffer = self.ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_src_bit = true }, .{ .host_visible_bit = true, .host_coherent_bit = true });
+        defer self.ctx.vk_allocator.destroy_buffer(staging_buffer);
 
-        const map_ptr = ctx.vk_allocator.map_buffer(T, staging_buffer);
+        const map_ptr = self.ctx.vk_allocator.map_buffer(T, staging_buffer);
         @memcpy(@as([*]T, @alignCast(@ptrCast(map_ptr))), data);
-        ctx.vk_allocator.unmap_buffer(staging_buffer);
+        self.ctx.vk_allocator.unmap_buffer(staging_buffer);
 
-        self.vk_buffer = ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_dst_bit = true, .vertex_buffer_bit = true }, .{ .device_local_bit = true });
+        self.vk_buffer = self.ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_dst_bit = true, .vertex_buffer_bit = true }, .{ .device_local_bit = true });
 
-        copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
+        copy_buffer(self.ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
 
-        ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
+        self.ctx.logical_device.device.queueWaitIdle(self.ctx.graphics_queue) catch {};
     }
 
     pub fn get_layout(self: VulkanVertexBuffer) types.BufferLayout {
         return self.layout;
     }
 
-    pub fn deinit(self: VulkanVertexBuffer) void {
+    pub fn deinit(self: *VulkanVertexBuffer) void {
         log.debug("Deinit vertex buffer", .{});
+        self.layout.deinit();
         self.ctx.logical_device.device.deviceWaitIdle() catch {};
         self.ctx.vk_allocator.destroy_buffer(self.vk_buffer.?);
     }

@@ -9,8 +9,37 @@ const os = @import("platform").os;
 
 const WindowError = error{UnsupportedPlatform};
 
+var initialized = false;
+
+/// A window that can be rendered to.
 pub const Window = union(enum) {
     desktop: *DesktopWindow,
+
+    /// Create a window with a given context.
+    ///
+    /// **Parameter** `context`: The context to create the window for.
+    /// **Parameter** `allocator`: The allocator used to create the window.
+    pub fn init(context: *Context, allocator: std.mem.Allocator) Window {
+        if (!initialized) {
+            switch (comptime os) {
+                .linux => DesktopWindow.init(),
+                .windows => DesktopWindow.init(),
+                else => {
+                    log.fatal("Attempted to initialize window system on unsupported platform {s}", .{@tagName(os)});
+                    std.process.exit(1);
+                },
+            }
+            initialized = true;
+        }
+        return switch (comptime os) {
+            .linux => .{ .desktop = DesktopWindow.create_window(context, allocator) },
+            .windows => .{ .desktop = DesktopWindow.create_window(context, allocator) },
+            else => {
+                log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(os)});
+                std.process.exit(1);
+            },
+        };
+    }
 
     pub fn set_size_screenspace(self: Window, width: i32, height: i32) void {
         switch (self) {
@@ -66,9 +95,9 @@ pub const Window = union(enum) {
         };
     }
 
-    pub fn get_vk_exts(self: Window) []VulkanExtension {
+    pub fn get_vk_exts(self: Window, allocator: std.mem.Allocator) []VulkanExtension {
         return switch (self) {
-            inline else => |case| case.get_vk_exts(),
+            inline else => |case| case.get_vk_exts(allocator),
         };
     }
 
@@ -78,27 +107,3 @@ pub const Window = union(enum) {
         };
     }
 };
-
-var initialized = false;
-
-pub fn create_window(context: *Context, allocator: std.mem.Allocator) Window {
-    if (!initialized) {
-        switch (comptime os) {
-            .linux => DesktopWindow.init(),
-            .windows => DesktopWindow.init(),
-            else => {
-                log.fatal("Attempted to initialize window system on unsupported platform {s}", .{@tagName(os)});
-                std.process.exit(1);
-            },
-        }
-        initialized = true;
-    }
-    return switch (comptime os) {
-        .linux => .{ .desktop = DesktopWindow.create_window(context, allocator) },
-        .windows => .{ .desktop = DesktopWindow.create_window(context, allocator) },
-        else => {
-            log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(os)});
-            std.process.exit(1);
-        },
-    };
-}

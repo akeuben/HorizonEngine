@@ -8,11 +8,18 @@ const Pipeline = @import("shader.zig").Pipeline;
 const RenderObject = @import("object.zig").RenderObject;
 const log = @import("../utils/log.zig");
 
+/// A target for rendering. Objects can target a RenderObject to render.
+/// A context has a default render target for the window.
 pub const RenderTarget = union(context.API) {
     OPEN_GL: opengl.OpenGLRenderTarget,
     VULKAN: vulkan.VulkanRenderTarget,
     NONE: none.NoneRenderTarget,
 
+    /// Create a new `RenderTarget`.
+    ///
+    /// **Parameter** `ctx`: The context to create the `RenderTarget` for.
+    /// **Parameter** `allocator`: The allocator used to create the render target.
+    /// **Returns** The created RenderTarget.
     pub fn init(ctx: *const context.Context, allocator: std.mem.Allocator) RenderTarget {
         return switch (ctx.*) {
             .OPEN_GL => RenderTarget{
@@ -27,30 +34,25 @@ pub const RenderTarget = union(context.API) {
         };
     }
 
+    /// Starts a renderpass.
+    ///
+    /// **Parameter** `self`: The render target to start the pass for.
     pub fn start(self: *const RenderTarget) void {
         switch (self.*) {
             inline else => |case| case.start(),
         }
     }
 
-    pub fn render(self: *const RenderTarget, object: *const RenderObject) void {
-        switch (self.*) {
-            inline else => |case| case.render(object),
-        }
-    }
-
+    /// Ends a renderpass.
+    ///
+    /// **Parameter** `self`: The render target to end the pass for.
     pub fn end(self: *const RenderTarget) void {
         switch (self.*) {
             inline else => |case| case.end(),
         }
     }
 
-    pub fn submit(self: *const RenderTarget) void {
-        switch (self.*) {
-            inline else => |case| case.submit(),
-        }
-    }
-
+    /// Destroy the render target.
     pub fn deinit(self: RenderTarget) void {
         switch (self) {
             inline else => |case| case.deinit(),

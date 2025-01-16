@@ -122,14 +122,14 @@ pub const DesktopWindow = struct {
         return glfwGetInstanceProcAddress;
     }
 
-    pub fn get_vk_exts(_: DesktopWindow) []VulkanExtension {
+    pub fn get_vk_exts(_: DesktopWindow, allocator: std.mem.Allocator) []VulkanExtension {
         if (glfw.glfwVulkanSupported() != glfw.GLFW_TRUE) {
             log.fatal("Tried to initialize vulkan, but vulkan could not be found!", .{});
             std.process.exit(1);
         }
         var count: u32 = 0;
         const glfwExtensions = glfw.glfwGetRequiredInstanceExtensions(&count);
-        var extensions = std.heap.page_allocator.alloc(VulkanExtension, count) catch unreachable;
+        var extensions = allocator.alloc(VulkanExtension, count) catch unreachable;
         for (0..count) |i| {
             extensions[i] = VulkanExtension{
                 .name = glfwExtensions[i],

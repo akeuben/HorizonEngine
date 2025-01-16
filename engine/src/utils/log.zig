@@ -70,3 +70,8 @@ pub fn set_level(level: LogLevel) void {
 pub fn get_level() LogLevel {
     return log_level;
 }
+
+pub inline fn not_implemented() void {
+    const src = comptime @src();
+    warn("The {s} api call has not been implemented for this API", .{src.fn_name});
+}

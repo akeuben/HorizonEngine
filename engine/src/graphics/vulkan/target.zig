@@ -30,21 +30,9 @@ pub const VulkanRenderTarget = union(enum) {
         }
     }
 
-    pub fn render(self: *const VulkanRenderTarget, object: *const RenderObject) void {
-        switch (self.*) {
-            inline else => |case| case.render(object),
-        }
-    }
-
     pub fn end(self: *const VulkanRenderTarget) void {
         switch (self.*) {
             inline else => |case| case.end(),
-        }
-    }
-
-    pub fn submit(self: *const VulkanRenderTarget) void {
-        switch (self.*) {
-            inline else => |case| case.submit(),
         }
     }
 
@@ -108,10 +96,8 @@ pub const OtherVulkanRenderTarget = struct {
     }
 
     pub fn start(_: *const OtherVulkanRenderTarget) void {}
-    pub fn render(_: *const OtherVulkanRenderTarget, _: *const RenderObject) void {}
 
     pub fn end(_: *const OtherVulkanRenderTarget) void {}
-    pub fn submit(_: *const OtherVulkanRenderTarget) void {}
 
     pub fn deinit(self: OtherVulkanRenderTarget) void {
         self.ctx.logical_device.device.destroyRenderPass(self.renderpass, null);

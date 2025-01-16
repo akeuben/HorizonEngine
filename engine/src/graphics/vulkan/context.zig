@@ -75,7 +75,7 @@ pub const VulkanContext = struct {
         var layers = std.ArrayList(VulkanLayer).init(self.allocator);
         defer layers.deinit();
 
-        const glfw_instance_extensions = window.get_vk_exts();
+        const glfw_instance_extensions = window.get_vk_exts(self.allocator);
         defer self.allocator.free(glfw_instance_extensions);
 
         instance_extensions.appendSlice(glfw_instance_extensions) catch {};

@@ -27,13 +27,7 @@ pub const OpenGLRenderTarget = struct {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
-    pub fn render(self: *const OpenGLRenderTarget, object: *const RenderObject) void {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, self.framebuffer);
-        object.draw(&self.target());
-    }
-
     pub fn end(_: *const OpenGLRenderTarget) void {}
-    pub fn submit(_: *const OpenGLRenderTarget) void {}
 
     pub fn deinit(self: OpenGLRenderTarget) void {
         gl.deleteFramebuffers(1, @ptrCast(&self.framebuffer));

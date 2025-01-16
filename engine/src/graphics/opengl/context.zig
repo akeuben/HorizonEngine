@@ -29,6 +29,7 @@ pub const OpenGLContext = struct {
             .framebuffer = 0,
             .ctx = ctx,
         };
+        ctx.allocator = allocator;
 
         return ctx;
     }
@@ -63,5 +64,7 @@ pub const OpenGLContext = struct {
         };
     }
 
-    pub fn deinit(_: *OpenGLContext) void {}
+    pub fn deinit(self: *OpenGLContext) void {
+        self.allocator.destroy(self);
+    }
 };
