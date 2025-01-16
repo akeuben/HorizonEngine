@@ -24,33 +24,33 @@ pub const VulkanRenderTarget = union(enum) {
         };
     }
 
-    pub fn start(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn start(self: *const VulkanRenderTarget) void {
         switch (self.*) {
-            inline else => |case| case.start(ctx),
+            inline else => |case| case.start(),
         }
     }
 
-    pub fn render(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext, object: *const RenderObject) void {
+    pub fn render(self: *const VulkanRenderTarget, object: *const RenderObject) void {
         switch (self.*) {
-            inline else => |case| case.render(ctx, object),
+            inline else => |case| case.render(object),
         }
     }
 
-    pub fn end(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn end(self: *const VulkanRenderTarget) void {
         switch (self.*) {
-            inline else => |case| case.end(ctx),
+            inline else => |case| case.end(),
         }
     }
 
-    pub fn submit(self: *const VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn submit(self: *const VulkanRenderTarget) void {
         switch (self.*) {
-            inline else => |case| case.submit(ctx),
+            inline else => |case| case.submit(),
         }
     }
 
-    pub fn deinit(self: VulkanRenderTarget, ctx: *const context.VulkanContext) void {
+    pub fn deinit(self: VulkanRenderTarget) void {
         switch (self) {
-            inline else => |case| case.deinit(ctx),
+            inline else => |case| case.deinit(),
         }
     }
 
@@ -62,6 +62,7 @@ pub const VulkanRenderTarget = union(enum) {
 };
 
 pub const OtherVulkanRenderTarget = struct {
+    ctx: *const context.VulkanContext,
     renderpass: vk.RenderPass,
 
     pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !OtherVulkanRenderTarget {
@@ -98,6 +99,7 @@ pub const OtherVulkanRenderTarget = struct {
 
         const t = try allocator.create(OtherVulkanRenderTarget);
         t.renderpass = renderpass;
+        t.ctx = ctx;
         return t;
     }
 
@@ -105,14 +107,14 @@ pub const OtherVulkanRenderTarget = struct {
         return self.renderpass;
     }
 
-    pub fn start(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
-    pub fn render(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext, _: *const RenderObject) void {}
+    pub fn start(_: *const OtherVulkanRenderTarget) void {}
+    pub fn render(_: *const OtherVulkanRenderTarget, _: *const RenderObject) void {}
 
-    pub fn end(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
-    pub fn submit(_: *const OtherVulkanRenderTarget, _: *const context.VulkanContext) void {}
+    pub fn end(_: *const OtherVulkanRenderTarget) void {}
+    pub fn submit(_: *const OtherVulkanRenderTarget) void {}
 
-    pub fn deinit(self: OtherVulkanRenderTarget, ctx: *const context.VulkanContext) void {
-        ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
+    pub fn deinit(self: OtherVulkanRenderTarget) void {
+        self.ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
     }
 
     pub fn get_current_commandbuffer(_: OtherVulkanRenderTarget) vk.CommandBuffer {

@@ -9,29 +9,31 @@ const gl = @import("gl");
 const log = @import("../../utils/log.zig");
 
 pub const OpenGLRenderTarget = struct {
+    ctx: *const context.OpenGLContext,
     framebuffer: u32,
 
-    pub fn init(_: *const context.OpenGLContext) OpenGLRenderTarget {
+    pub fn init(ctx: *const context.OpenGLContext) OpenGLRenderTarget {
         var framebuffer: u32 = 0;
         gl.genFramebuffers(1, @ptrCast(&framebuffer));
 
         return .{
+            .ctx = ctx,
             .framebuffer = framebuffer,
         };
     }
 
-    pub fn start(_: *const OpenGLRenderTarget, _: *const context.OpenGLContext) void {
+    pub fn start(_: *const OpenGLRenderTarget) void {
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
-    pub fn render(self: *const OpenGLRenderTarget, ctx: *const context.OpenGLContext, object: *const RenderObject) void {
+    pub fn render(self: *const OpenGLRenderTarget, object: *const RenderObject) void {
         gl.bindFramebuffer(gl.FRAMEBUFFER, self.framebuffer);
-        object.draw(&ctx.context(), &self.target());
+        object.draw(&self.target());
     }
 
-    pub fn end(_: *const OpenGLRenderTarget, _: *const context.OpenGLContext) void {}
-    pub fn submit(_: *const OpenGLRenderTarget, _: *const context.OpenGLContext) void {}
+    pub fn end(_: *const OpenGLRenderTarget) void {}
+    pub fn submit(_: *const OpenGLRenderTarget) void {}
 
     pub fn deinit(self: OpenGLRenderTarget) void {
         gl.deleteFramebuffers(1, @ptrCast(&self.framebuffer));

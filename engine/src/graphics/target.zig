@@ -27,35 +27,27 @@ pub const RenderTarget = union(context.API) {
         };
     }
 
-    pub fn start(self: *const RenderTarget, ctx: *const context.Context) void {
+    pub fn start(self: *const RenderTarget) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLRenderTarget.start(&self.OPEN_GL, &ctx.OPEN_GL),
-            .VULKAN => vulkan.VulkanRenderTarget.start(&self.VULKAN, &ctx.VULKAN),
-            .NONE => none.NoneRenderTarget.start(&self.NONE, &ctx.NONE),
+            inline else => |case| case.start(),
         }
     }
 
-    pub fn render(self: *const RenderTarget, ctx: *const context.Context, object: *const RenderObject) void {
+    pub fn render(self: *const RenderTarget, object: *const RenderObject) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLRenderTarget.render(&self.OPEN_GL, &ctx.OPEN_GL, object),
-            .VULKAN => vulkan.VulkanRenderTarget.render(&self.VULKAN, &ctx.VULKAN, object),
-            .NONE => none.NoneRenderTarget.render(&self.NONE, &ctx.NONE, object),
+            inline else => |case| case.render(object),
         }
     }
 
-    pub fn end(self: *const RenderTarget, ctx: *const context.Context) void {
+    pub fn end(self: *const RenderTarget) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLRenderTarget.end(&self.OPEN_GL, &ctx.OPEN_GL),
-            .VULKAN => vulkan.VulkanRenderTarget.end(&self.VULKAN, &ctx.VULKAN),
-            .NONE => none.NoneRenderTarget.end(&self.NONE, &ctx.NONE),
+            inline else => |case| case.end(),
         }
     }
 
-    pub fn submit(self: *const RenderTarget, ctx: *const context.Context) void {
+    pub fn submit(self: *const RenderTarget) void {
         switch (self.*) {
-            .OPEN_GL => opengl.OpenGLRenderTarget.submit(&self.OPEN_GL, &ctx.OPEN_GL),
-            .VULKAN => vulkan.VulkanRenderTarget.submit(&self.VULKAN, &ctx.VULKAN),
-            .NONE => none.NoneRenderTarget.submit(&self.NONE, &ctx.NONE),
+            inline else => |case| case.submit(),
         }
     }
 

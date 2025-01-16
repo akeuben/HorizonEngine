@@ -74,17 +74,17 @@ pub const DesktopWindow = struct {
         }
     }
 
-    pub fn start_frame(self: DesktopWindow, context: *Context) void {
-        switch (context.*) {
+    pub fn start_frame(self: DesktopWindow) void {
+        switch (self.context.*) {
             .OPEN_GL => {},
             .VULKAN => {
                 while (true) {
-                    if (context.VULKAN.swapchain.acquire_image(&context.VULKAN)) {
+                    if (self.context.VULKAN.swapchain.acquire_image()) {
                         break;
                     } else |err| switch (err) {
                         VulkanSwapchain.AcquireImageError.OutOfDateSwapchain => {
                             // Recreate the swapchain
-                            context.VULKAN.swapchain.resize(&context.VULKAN, self.get_size_pixels());
+                            self.context.VULKAN.swapchain.resize(self.get_size_pixels());
                         },
                         else => {
                             log.fatal("Failed to acquire swapchain image.", .{});
@@ -96,11 +96,11 @@ pub const DesktopWindow = struct {
         }
     }
 
-    pub fn swap(self: *DesktopWindow, context: *Context) void {
-        switch (context.*) {
+    pub fn swap(self: *DesktopWindow) void {
+        switch (self.context.*) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
             .VULKAN => {
-                context.VULKAN.swapchain.swap(&context.VULKAN, &Window.Window{ .desktop = self });
+                self.context.VULKAN.swapchain.swap(&Window.Window{ .desktop = self });
             },
             .NONE => {},
         }

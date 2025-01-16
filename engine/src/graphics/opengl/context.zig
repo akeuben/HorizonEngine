@@ -1,3 +1,4 @@
+const std = @import("std");
 const Window = @import("../../platform/window.zig").Window;
 const gl = @import("gl");
 const log = @import("../../utils/log.zig");
@@ -19,22 +20,21 @@ fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLe
 
 pub const OpenGLContext = struct {
     target: OpenGLRenderTarget,
+    allocator: std.mem.Allocator,
 
-    pub fn init() OpenGLContext {
-        const ctx = OpenGLContext{
-            .target = .{
-                // The default framebuffer defined by OpenGL
-                .framebuffer = 0,
-            },
+    pub fn init(allocator: std.mem.Allocator) *OpenGLContext {
+        const ctx = allocator.create(OpenGLContext) catch unreachable;
+        ctx.target = .{
+            // The default framebuffer defined by OpenGL
+            .framebuffer = 0,
+            .ctx = ctx,
         };
 
         return ctx;
     }
 
-    pub fn deinit(_: OpenGLContext) void {}
-
     pub fn load(self: *OpenGLContext, window: *const Window) void {
-        window.set_current_context(.{ .OPEN_GL = self.* });
+        window.set_current_context(.{ .OPEN_GL = self });
 
         gl.load(window.*, Window.get_gl_loader) catch {
             log.fatal("Failed to load gl", .{});
@@ -57,9 +57,11 @@ pub const OpenGLContext = struct {
         return self.target;
     }
 
-    pub fn context(self: OpenGLContext) Context {
+    pub fn context(self: *OpenGLContext) Context {
         return .{
             .OPEN_GL = self,
         };
     }
+
+    pub fn deinit(_: *OpenGLContext) void {}
 };

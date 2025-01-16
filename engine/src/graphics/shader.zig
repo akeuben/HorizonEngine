@@ -37,7 +37,7 @@ pub const VertexShader = union(context.API) {
                 },
             },
             .VULKAN => VertexShader{
-                .VULKAN = vulkan.VulkanVertexShader.init(&ctx.VULKAN, shader_data) catch {
+                .VULKAN = vulkan.VulkanVertexShader.init(ctx.VULKAN, shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },
@@ -70,7 +70,7 @@ pub const FragmentShader = union(context.API) {
                 },
             },
             .VULKAN => FragmentShader{
-                .VULKAN = vulkan.VulkanFragmentShader.init(&ctx.VULKAN, shader_data) catch {
+                .VULKAN = vulkan.VulkanFragmentShader.init(ctx.VULKAN, shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },
@@ -100,7 +100,7 @@ pub const Pipeline = union(context.API) {
                 },
             },
             .VULKAN => Pipeline{
-                .VULKAN = vulkan.VulkanPipeline.init(&ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &target.VULKAN) catch {
+                .VULKAN = vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &target.VULKAN) catch {
                     return ShaderError.LinkingError;
                 },
             },

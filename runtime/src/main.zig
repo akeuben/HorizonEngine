@@ -40,14 +40,15 @@ pub fn main() !void {
 
     var context: c.Context = undefined;
     if (args.len != 2) {
-        context = c.Context.init_none();
+        context = c.Context.init_none(std.heap.page_allocator);
     } else if (std.mem.eql(u8, "vk", args[1])) {
-        context = c.Context.init_vulkan();
+        context = c.Context.init_vulkan(std.heap.page_allocator);
     } else if (std.mem.eql(u8, "gl", args[1])) {
-        context = c.Context.init_open_gl();
+        context = c.Context.init_open_gl(std.heap.page_allocator);
     } else {
-        context = c.Context.init_none();
+        context = c.Context.init_none(std.heap.page_allocator);
     }
+    defer context.deinit();
 
     const window = w.create_window(&context, std.heap.page_allocator);
     context.load(&window);
@@ -55,29 +56,27 @@ pub fn main() !void {
     const target = context.get_target();
 
     const triangle_buffer = try b.VertexBuffer.init(&context, Vertex, triangle_vertices);
+    defer triangle_buffer.deinit();
     const rectangle_buffer = try b.VertexBuffer.init(&context, Vertex, rectangle_vertices);
+    defer rectangle_buffer.deinit();
     const rectangle_index_buffer = try b.IndexBuffer.init(&context, renctangle_indices);
+    defer rectangle_index_buffer.deinit();
 
     const pipeline = try s.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
+    defer pipeline.deinit();
 
     var triangle = o.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();
     const rectangle = o.IndexRenderObject.init(&context, &pipeline, &rectangle_buffer, &rectangle_index_buffer).object();
 
     while (!window.should_close()) {
-        window.start_frame(&context);
-        target.start(&context);
-        target.render(&context, &triangle);
-        target.render(&context, &rectangle);
-        target.end(&context);
-        target.submit(&context);
+        window.start_frame();
+        target.start();
+        target.render(&triangle);
+        target.render(&rectangle);
+        target.end();
+        target.submit();
 
-        window.swap(&context);
+        window.swap();
         window.update();
     }
-
-    rectangle_index_buffer.deinit(&context);
-    rectangle_buffer.deinit(&context);
-    triangle_buffer.deinit(&context);
-    pipeline.deinit();
-    context.deinit();
 }

@@ -18,7 +18,7 @@ pub const VertexBuffer = union(context.API) {
                 },
             },
             .VULKAN => VertexBuffer{
-                .VULKAN = vulkan.VulkanVertexBuffer.init(&ctx.VULKAN, T, data),
+                .VULKAN = vulkan.VulkanVertexBuffer.init(ctx.VULKAN, T, data),
             },
             .NONE => VertexBuffer{
                 .NONE = none.NoneVertexBuffer.init(),
@@ -38,10 +38,10 @@ pub const VertexBuffer = union(context.API) {
         };
     }
 
-    pub fn deinit(self: VertexBuffer, ctx: *const context.Context) void {
+    pub fn deinit(self: VertexBuffer) void {
         return switch (self) {
             .OPEN_GL => self.OPEN_GL.deinit(),
-            .VULKAN => self.VULKAN.deinit(&ctx.VULKAN),
+            .VULKAN => self.VULKAN.deinit(),
             .NONE => self.NONE.deinit(),
         };
     }
@@ -60,7 +60,7 @@ pub const IndexBuffer = union(context.API) {
                 },
             },
             .VULKAN => IndexBuffer{
-                .VULKAN = vulkan.VulkanIndexBuffer.init(&ctx.VULKAN, data),
+                .VULKAN = vulkan.VulkanIndexBuffer.init(ctx.VULKAN, data),
             },
             .NONE => IndexBuffer{
                 .NONE = none.NoneIndexBuffer.init(),
@@ -74,10 +74,10 @@ pub const IndexBuffer = union(context.API) {
         }
     }
 
-    pub fn deinit(self: IndexBuffer, ctx: *const context.Context) void {
+    pub fn deinit(self: IndexBuffer) void {
         return switch (self) {
             .OPEN_GL => self.OPEN_GL.deinit(),
-            .VULKAN => self.VULKAN.deinit(&ctx.VULKAN),
+            .VULKAN => self.VULKAN.deinit(),
             .NONE => self.NONE.deinit(),
         };
     }

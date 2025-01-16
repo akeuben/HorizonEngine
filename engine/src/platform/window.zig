@@ -36,15 +36,15 @@ pub const Window = union(enum) {
         }
     }
 
-    pub fn start_frame(self: Window, context: *Context) void {
+    pub fn start_frame(self: Window) void {
         switch (self) {
-            inline else => |case| case.start_frame(context),
+            inline else => |case| case.start_frame(),
         }
     }
 
-    pub fn swap(self: Window, context: *Context) void {
+    pub fn swap(self: Window) void {
         switch (self) {
-            inline else => |case| case.swap(context),
+            inline else => |case| case.swap(),
         }
     }
 

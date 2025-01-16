@@ -12,7 +12,7 @@ const swapchain = @import("swapchain.zig");
 const VulkanVertexBuffer = @import("buffer.zig").VulkanVertexBuffer;
 const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
-const allocator = @import("allocator.zig");
+const vk_allocator = @import("allocator.zig");
 const Context = @import("../context.zig").Context;
 
 const apis: []const vk.ApiInfo = &.{
@@ -29,12 +29,13 @@ pub const Device = vk.DeviceProxy(apis);
 
 pub const VulkanContext = struct {
     loaded: bool = false,
+    allocator: std.mem.Allocator,
 
     vkb: BaseDispatch,
 
     instance: instance.Instance,
 
-    allocator: allocator.VulkanAllocator,
+    vk_allocator: vk_allocator.VulkanAllocator,
 
     surface: vk.SurfaceKHR,
 
@@ -49,8 +50,11 @@ pub const VulkanContext = struct {
 
     target: VulkanRenderTarget,
 
-    pub fn init() VulkanContext {
-        return undefined;
+    pub fn init(allocator: std.mem.Allocator) *VulkanContext {
+        var ctx = allocator.create(VulkanContext) catch unreachable;
+        ctx.allocator = allocator;
+
+        return ctx;
     }
 
     pub fn load(self: *VulkanContext, window: *const Window) void {
@@ -62,17 +66,17 @@ pub const VulkanContext = struct {
         };
         log.debug("Loaded vulkan base bindings", .{});
 
-        var instance_extensions = std.ArrayList(VulkanExtension).init(std.heap.page_allocator);
+        var instance_extensions = std.ArrayList(VulkanExtension).init(self.allocator);
         defer instance_extensions.deinit();
 
-        var device_extensions = std.ArrayList(VulkanExtension).init(std.heap.page_allocator);
+        var device_extensions = std.ArrayList(VulkanExtension).init(self.allocator);
         defer device_extensions.deinit();
 
-        var layers = std.ArrayList(VulkanLayer).init(std.heap.page_allocator);
+        var layers = std.ArrayList(VulkanLayer).init(self.allocator);
         defer layers.deinit();
 
         const glfw_instance_extensions = window.get_vk_exts();
-        defer std.heap.page_allocator.free(glfw_instance_extensions);
+        defer self.allocator.free(glfw_instance_extensions);
 
         instance_extensions.appendSlice(glfw_instance_extensions) catch {};
         instance_extensions.appendSlice(validation.debug_required_instance_extensions) catch {};
@@ -96,7 +100,7 @@ pub const VulkanContext = struct {
         const device_extension_slice: []VulkanExtension = device_extensions.toOwnedSlice() catch &.{};
         const layer_slice: []VulkanLayer = layers.toOwnedSlice() catch &.{};
 
-        self.instance = instance.Instance.init(self, instance_extension_slice, layer_slice, "Test App", std.heap.page_allocator) catch {
+        self.instance = instance.Instance.init(self, instance_extension_slice, layer_slice, "Test App", self.allocator) catch {
             log.fatal("Failed to initialize vulkan", .{});
             std.process.exit(1);
         };
@@ -106,14 +110,14 @@ pub const VulkanContext = struct {
         log.debug("Created window surface.", .{});
 
         self.physical_device = device.PhysicalDevice.init(self, device_extension_slice);
-        self.logical_device = device.LogicalDevice.init(self, self.physical_device, layer_slice, device_extension_slice, std.heap.page_allocator) catch {
+        self.logical_device = device.LogicalDevice.init(self, self.physical_device, layer_slice, device_extension_slice, self.allocator) catch {
             log.fatal("Failed to create logical vulkan device", .{});
             std.process.exit(1);
         };
         log.debug("Created vulkan logical device", .{});
 
-        self.allocator = allocator.VulkanAllocator.init(self, window);
-        log.debug("Created vulkan allocator", .{});
+        self.vk_allocator = vk_allocator.VulkanAllocator.init(self, window);
+        log.debug("Created vulkan vk_allocator", .{});
 
         self.graphics_queue = queue.get_graphics_queue(self, 0);
         self.present_queue = queue.get_present_queue(self, 0);
@@ -134,7 +138,7 @@ pub const VulkanContext = struct {
         };
         log.debug("Created command pool", .{});
 
-        self.swapchain = swapchain.Swapchain.init(self, window, std.heap.page_allocator) catch {
+        self.swapchain = swapchain.Swapchain.init(self, window, self.allocator) catch {
             log.fatal("Failed to create swapchain", .{});
             std.process.exit(1);
         };
@@ -155,19 +159,21 @@ pub const VulkanContext = struct {
         self.swapchain.resized = true;
     }
 
-    pub fn deinit(self: VulkanContext) void {
-        self.allocator.deinit();
+    pub fn deinit(self: *VulkanContext) void {
+        self.vk_allocator.deinit();
         self.logical_device.device.deviceWaitIdle() catch {};
         self.logical_device.device.destroyCommandPool(self.command_pool, null);
-        self.swapchain.deinit(&self);
+        self.swapchain.deinit();
         self.logical_device.deinit();
 
         self.instance.instance.destroySurfaceKHR(self.surface, null);
 
         self.instance.deinit();
+
+        self.allocator.destroy(self);
     }
 
-    pub fn context(self: VulkanContext) Context {
+    pub fn context(self: *VulkanContext) Context {
         return .{
             .VULKAN = self,
         };

@@ -10,12 +10,12 @@ pub const NoneRenderTarget = struct {
         return allocator.alloc(NoneRenderTarget);
     }
 
-    pub fn start(_: *const NoneRenderTarget, _: *const context.NoneContext) void {}
+    pub fn start(_: *const NoneRenderTarget) void {}
 
-    pub fn render(_: *const NoneRenderTarget, _: *const context.NoneContext, _: *const RenderObject) void {}
+    pub fn render(_: *const NoneRenderTarget, _: *const RenderObject) void {}
 
-    pub fn end(_: *const NoneRenderTarget, _: *const context.NoneContext) void {}
-    pub fn submit(_: *const NoneRenderTarget, _: *const context.NoneContext) void {}
+    pub fn end(_: *const NoneRenderTarget) void {}
+    pub fn submit(_: *const NoneRenderTarget) void {}
 
     pub fn deinit(_: NoneRenderTarget) void {}
 };

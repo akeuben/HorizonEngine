@@ -29,7 +29,7 @@ pub const OpenGLVertexRenderObject = struct {
         };
     }
 
-    pub fn draw(self: *const OpenGLVertexRenderObject, _: *const OpenGLContext, _: *const OpenGLRenderTarget) void {
+    pub fn draw(self: *const OpenGLVertexRenderObject, _: *const OpenGLRenderTarget) void {
         gl.bindVertexArray(self.gl_array);
         gl.drawArrays(gl.TRIANGLES, 0, @intCast(self.layout.length));
     }
@@ -60,7 +60,7 @@ pub const OpenGLIndexRenderObject = struct {
         };
     }
 
-    pub fn draw(self: *const OpenGLIndexRenderObject, _: *const OpenGLContext, _: *const OpenGLRenderTarget) void {
+    pub fn draw(self: *const OpenGLIndexRenderObject, _: *const OpenGLRenderTarget) void {
         gl.bindVertexArray(self.gl_array);
         gl.drawElements(gl.TRIANGLES, @intCast(self.count), gl.UNSIGNED_INT, null);
     }

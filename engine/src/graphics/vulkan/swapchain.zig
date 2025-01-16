@@ -77,6 +77,7 @@ fn choose_swap_extent(size: @Vector(2, i32), capabilities: *const vk.SurfaceCapa
 pub const AcquireImageError = error{ OutOfDateSwapchain, Other };
 
 pub const Swapchain = struct {
+    ctx: *const context.VulkanContext,
     swapchain: vk.SwapchainKHR,
     images: []vk.Image,
     image_views: []vk.ImageView,
@@ -95,14 +96,15 @@ pub const Swapchain = struct {
 
     pub fn init(ctx: *const context.VulkanContext, window: *const Window, allocator: std.mem.Allocator) !Swapchain {
         var swapchain: Swapchain = undefined;
+        swapchain.ctx = ctx;
         swapchain.current_image_index = null;
         swapchain.current_frame = 0;
         swapchain.allocator = allocator;
         swapchain.resized = false;
         swapchain.swapchain = .null_handle;
 
-        try create_swapchain(&swapchain, ctx, window.get_size_pixels());
-        try create_image_views(&swapchain, ctx);
+        try create_swapchain(&swapchain, window.get_size_pixels());
+        try create_image_views(&swapchain);
 
         var image_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
         var render_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
@@ -162,7 +164,7 @@ pub const Swapchain = struct {
 
         swapchain.renderpass = try ctx.logical_device.device.createRenderPass(&renderpass_create_info, null);
 
-        swapchain.framebuffers = try create_framebuffers(ctx, &swapchain);
+        swapchain.framebuffers = try create_framebuffers(&swapchain);
 
         const command_buffer_info = vk.CommandBufferAllocateInfo{
             .command_pool = ctx.command_pool,
@@ -175,27 +177,27 @@ pub const Swapchain = struct {
         return swapchain;
     }
 
-    fn create_framebuffers(ctx: *const context.VulkanContext, swapchain: *const Swapchain) ![]vk.Framebuffer {
-        const framebuffers = try std.heap.page_allocator.alloc(vk.Framebuffer, swapchain.image_views.len);
+    fn create_framebuffers(self: *const Swapchain) ![]vk.Framebuffer {
+        const framebuffers = try std.heap.page_allocator.alloc(vk.Framebuffer, self.image_views.len);
 
-        for (swapchain.image_views, 0..) |image_view, i| {
+        for (self.image_views, 0..) |image_view, i| {
             const attachments: []const vk.ImageView = &.{image_view};
             const info = vk.FramebufferCreateInfo{
-                .render_pass = swapchain.renderpass,
+                .render_pass = self.renderpass,
                 .attachment_count = 1,
                 .p_attachments = @ptrCast(attachments.ptr),
-                .width = swapchain.extent.width,
-                .height = swapchain.extent.height,
+                .width = self.extent.width,
+                .height = self.extent.height,
                 .layers = 1,
             };
-            framebuffers[i] = try ctx.logical_device.device.createFramebuffer(@ptrCast(&info), null);
+            framebuffers[i] = try self.ctx.logical_device.device.createFramebuffer(@ptrCast(&info), null);
         }
 
         return framebuffers;
     }
 
-    fn create_swapchain(self: *Swapchain, ctx: *const context.VulkanContext, size: @Vector(2, i32)) !void {
-        const support = try query_swapchain_support(ctx, ctx.physical_device.device, ctx.surface, std.heap.page_allocator);
+    fn create_swapchain(self: *Swapchain, size: @Vector(2, i32)) !void {
+        const support = try query_swapchain_support(self.ctx, self.ctx.physical_device.device, self.ctx.surface, std.heap.page_allocator);
         defer support.deinit();
 
         const format = choose_swapchain_format(support.formats);
@@ -207,7 +209,7 @@ pub const Swapchain = struct {
             image_count = support.capabilities.max_image_count;
         }
 
-        const indices = try queue.find_queue_families(ctx, ctx.physical_device.device);
+        const indices = try queue.find_queue_families(self.ctx, self.ctx.physical_device.device);
         const queue_family_indices: ?[]const u32 = if (indices.graphics_family.? == indices.present_family.?)
             null
         else
@@ -223,7 +225,7 @@ pub const Swapchain = struct {
             2;
 
         const create_info: vk.SwapchainCreateInfoKHR = .{
-            .surface = ctx.surface,
+            .surface = self.ctx.surface,
             .min_image_count = image_count,
             .image_format = format.format,
             .image_color_space = format.color_space,
@@ -244,13 +246,13 @@ pub const Swapchain = struct {
             .old_swapchain = self.swapchain,
         };
 
-        self.swapchain = try ctx.logical_device.device.createSwapchainKHR(&create_info, null);
+        self.swapchain = try self.ctx.logical_device.device.createSwapchainKHR(&create_info, null);
         self.format = format.format;
         self.extent = extent;
     }
 
-    fn create_image_views(self: *Swapchain, ctx: *const context.VulkanContext) !void {
-        const images = try ctx.logical_device.device.getSwapchainImagesAllocKHR(self.swapchain, self.allocator);
+    fn create_image_views(self: *Swapchain) !void {
+        const images = try self.ctx.logical_device.device.getSwapchainImagesAllocKHR(self.swapchain, self.allocator);
 
         const image_views = try self.allocator.alloc(vk.ImageView, images.len);
         for (images, 0..) |image, i| {
@@ -272,28 +274,28 @@ pub const Swapchain = struct {
                     .layer_count = 1,
                 },
             };
-            image_views[i] = try ctx.logical_device.device.createImageView(&view_create_info, null);
+            image_views[i] = try self.ctx.logical_device.device.createImageView(&view_create_info, null);
         }
 
         self.images = images;
         self.image_views = image_views;
     }
 
-    pub fn recreate(self: *Swapchain, ctx: *const context.VulkanContext, size: @Vector(2, i32)) !void {
-        ctx.logical_device.device.deviceWaitIdle() catch {};
+    pub fn recreate(self: *Swapchain, size: @Vector(2, i32)) !void {
+        self.ctx.logical_device.device.deviceWaitIdle() catch {};
 
         for (self.image_views) |view| {
-            ctx.logical_device.device.destroyImageView(view, null);
+            self.ctx.logical_device.device.destroyImageView(view, null);
         }
         const old_swapchain = self.swapchain;
 
-        try create_swapchain(self, ctx, size);
-        ctx.logical_device.device.destroySwapchainKHR(old_swapchain, null);
-        try create_image_views(self, ctx);
+        try create_swapchain(self, size);
+        self.ctx.logical_device.device.destroySwapchainKHR(old_swapchain, null);
+        try create_image_views(self);
     }
 
-    pub fn acquire_image(self: *Swapchain, ctx: *const context.VulkanContext) AcquireImageError!void {
-        const r = ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fences[self.current_frame]), vk.TRUE, std.math.maxInt(u64)) catch {
+    pub fn acquire_image(self: *Swapchain) AcquireImageError!void {
+        const r = self.ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fences[self.current_frame]), vk.TRUE, std.math.maxInt(u64)) catch {
             log.err("Failed to wait for previous frame to finish!", .{});
             return undefined;
         };
@@ -302,7 +304,7 @@ pub const Swapchain = struct {
             log.err("Failed to wait for previous frame to finish!", .{});
         }
 
-        const result = ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphores[self.current_frame], .null_handle) catch {
+        const result = self.ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphores[self.current_frame], .null_handle) catch {
             log.err("Failed to acquire next image from swapchain!", .{});
             return AcquireImageError.Other;
         };
@@ -315,14 +317,14 @@ pub const Swapchain = struct {
             return AcquireImageError.Other;
         }
 
-        ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fences[self.current_frame])) catch {
+        self.ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fences[self.current_frame])) catch {
             log.err("Failed to reset previous frame fence", .{});
         };
 
         self.current_image_index = result.image_index;
     }
 
-    pub fn swap(self: *Swapchain, ctx: *context.VulkanContext, window: *const Window) void {
+    pub fn swap(self: *Swapchain, window: *const Window) void {
         const wait_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphores[self.current_frame]};
 
         const image_index = @as(u32, @intCast(self.current_image_index.?));
@@ -336,13 +338,13 @@ pub const Swapchain = struct {
             .p_results = null,
         };
 
-        const result = ctx.logical_device.device.queuePresentKHR(ctx.present_queue, &present_info) catch {
+        const result = self.ctx.logical_device.device.queuePresentKHR(self.ctx.present_queue, &present_info) catch {
             log.err("Failed to present vulkan", .{});
             return;
         };
 
         if (result == .error_out_of_date_khr or result == .suboptimal_khr or self.resized) {
-            resize(self, ctx, window.get_size_pixels());
+            resize(self, window.get_size_pixels());
             self.resized = false;
         } else if (result != .success) {
             log.err("Swap failed", .{});
@@ -358,8 +360,8 @@ pub const Swapchain = struct {
         return self.renderpass;
     }
 
-    pub fn start(self: *const Swapchain, ctx: *const context.VulkanContext) void {
-        ctx.logical_device.device.resetCommandBuffer(self.command_buffers[self.current_frame], .{}) catch {
+    pub fn start(self: *const Swapchain) void {
+        self.ctx.logical_device.device.resetCommandBuffer(self.command_buffers[self.current_frame], .{}) catch {
             log.err("Failed to reset command buffer", .{});
         };
         const begin_info = vk.CommandBufferBeginInfo{
@@ -367,7 +369,7 @@ pub const Swapchain = struct {
             .p_inheritance_info = null,
         };
 
-        ctx.logical_device.device.beginCommandBuffer(self.command_buffers[self.current_frame], &begin_info) catch {
+        self.ctx.logical_device.device.beginCommandBuffer(self.command_buffers[self.current_frame], &begin_info) catch {
             log.err("Failed to start command buffer", .{});
             return;
         };
@@ -385,10 +387,10 @@ pub const Swapchain = struct {
             .p_clear_values = @ptrCast(&clear_color),
         };
 
-        ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[self.current_frame], &pass_info, .@"inline");
+        self.ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[self.current_frame], &pass_info, .@"inline");
     }
 
-    pub fn render(self: *const Swapchain, ctx: *const context.VulkanContext, object: *const RenderObject) void {
+    pub fn render(self: *const Swapchain, object: *const RenderObject) void {
         const viewport = vk.Viewport{
             .x = 0,
             .y = @as(f32, @floatFromInt(self.extent.height)),
@@ -397,27 +399,27 @@ pub const Swapchain = struct {
             .min_depth = 0,
             .max_depth = 1,
         };
-        ctx.logical_device.device.cmdSetViewport(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&viewport));
+        self.ctx.logical_device.device.cmdSetViewport(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&viewport));
 
         const scissor = vk.Rect2D{
             .offset = .{ .x = 0, .y = 0 },
             .extent = self.extent,
         };
-        ctx.logical_device.device.cmdSetScissor(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&scissor));
+        self.ctx.logical_device.device.cmdSetScissor(self.command_buffers[self.current_frame], 0, 1, @ptrCast(&scissor));
 
-        object.draw(&ctx.context(), &self.target());
+        object.draw(&self.target());
     }
 
-    pub fn end(self: *const Swapchain, ctx: *const context.VulkanContext) void {
-        ctx.logical_device.device.cmdEndRenderPass(self.command_buffers[self.current_frame]);
+    pub fn end(self: *const Swapchain) void {
+        self.ctx.logical_device.device.cmdEndRenderPass(self.command_buffers[self.current_frame]);
 
-        ctx.logical_device.device.endCommandBuffer(self.command_buffers[self.current_frame]) catch {
+        self.ctx.logical_device.device.endCommandBuffer(self.command_buffers[self.current_frame]) catch {
             log.err("Failed to record command buffer", .{});
             return;
         };
     }
 
-    pub fn submit(self: *const Swapchain, ctx: *const context.VulkanContext) void {
+    pub fn submit(self: *const Swapchain) void {
         const wait_semaphores: []const vk.Semaphore = &.{self.image_available_semaphores[self.current_frame]};
         const wait_stages: vk.PipelineStageFlags = .{ .color_attachment_output_bit = true };
 
@@ -433,50 +435,50 @@ pub const Swapchain = struct {
             .p_signal_semaphores = @ptrCast(signal_semaphores.ptr),
         };
 
-        ctx.logical_device.device.queueSubmit(ctx.graphics_queue, 1, @ptrCast(&submit_info), self.in_flight_fences[self.current_frame]) catch {
+        self.ctx.logical_device.device.queueSubmit(self.ctx.graphics_queue, 1, @ptrCast(&submit_info), self.in_flight_fences[self.current_frame]) catch {
             log.err("Failed to submit command buffer to graphics queue", .{});
         };
     }
 
-    pub fn resize(self: *Swapchain, ctx: *context.VulkanContext, new_size: @Vector(2, i32)) void {
-        ctx.logical_device.device.deviceWaitIdle() catch {};
+    pub fn resize(self: *Swapchain, new_size: @Vector(2, i32)) void {
+        self.ctx.logical_device.device.deviceWaitIdle() catch {};
 
         // Destroy the old framebuffers
         for (self.framebuffers) |framebuffer| {
-            ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
+            self.ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
         }
         std.heap.page_allocator.free(self.framebuffers);
 
         // Destroy the old swapchain
-        recreate(self, ctx, new_size) catch {
+        recreate(self, new_size) catch {
             log.fatal("Failed to recreate swapchain", .{});
             std.process.exit(1);
         };
 
         // Create new framebuffers
-        self.framebuffers = create_framebuffers(ctx, self) catch {
+        self.framebuffers = create_framebuffers(self) catch {
             log.fatal("Failed to recreate framebuffers", .{});
             std.process.exit(1);
         };
     }
 
-    pub fn deinit(self: *const Swapchain, ctx: *const context.VulkanContext) void {
+    pub fn deinit(self: *const Swapchain) void {
         for (self.framebuffers) |framebuffer| {
-            ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
+            self.ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
         }
         std.heap.page_allocator.free(self.framebuffers);
-        ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
+        self.ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
 
         for (0..MAX_FRAMES_IN_FLIGHT) |i| {
-            ctx.logical_device.device.destroySemaphore(self.image_available_semaphores[i], null);
-            ctx.logical_device.device.destroySemaphore(self.render_finished_semaphores[i], null);
-            ctx.logical_device.device.destroyFence(self.in_flight_fences[i], null);
+            self.ctx.logical_device.device.destroySemaphore(self.image_available_semaphores[i], null);
+            self.ctx.logical_device.device.destroySemaphore(self.render_finished_semaphores[i], null);
+            self.ctx.logical_device.device.destroyFence(self.in_flight_fences[i], null);
         }
         for (self.image_views) |view| {
-            ctx.logical_device.device.destroyImageView(view, null);
+            self.ctx.logical_device.device.destroyImageView(view, null);
         }
         self.allocator.free(self.image_views);
-        ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
+        self.ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
         self.allocator.free(self.images);
     }
 

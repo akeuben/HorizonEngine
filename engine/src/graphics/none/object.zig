@@ -9,7 +9,7 @@ pub const NoneVertexRenderObject = struct {
         return .{};
     }
 
-    pub fn draw(_: NoneVertexRenderObject, _: *const NoneContext, _: *const NoneRenderTarget) void {}
+    pub fn draw(_: NoneVertexRenderObject, _: *const NoneRenderTarget) void {}
 };
 
 pub const NoneIndexRenderObject = struct {
@@ -17,5 +17,5 @@ pub const NoneIndexRenderObject = struct {
         return .{};
     }
 
-    pub fn draw(_: NoneIndexRenderObject, _: *const NoneContext, _: *const NoneRenderTarget) void {}
+    pub fn draw(_: NoneIndexRenderObject, _: *const NoneRenderTarget) void {}
 };
