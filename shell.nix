@@ -16,6 +16,10 @@
         shaderc 
 
         # Linux Rendering libraries
+        wayland
+        wayland-protocols
+        wayland-scanner
+        libxkbcommon
         xorg.libX11
         xorg.libXcursor
         xorg.libXxf86vm
@@ -28,4 +32,8 @@
     ];
 
     VULKAN_REGISTRY = "${pkgs.vulkan-headers}/share/vulkan/registry/vk.xml";
+    WL_PROTOCOL = "${pkgs.wayland-protocols}/share/wayland-protocols";
+    shellHook = ''
+        export LD_LIBRARY_PATH=${pkgs.wayland}/lib:$LD_LIBRARY_PATH
+    '';
 }

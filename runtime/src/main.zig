@@ -27,6 +27,12 @@ const Vertex = packed struct {
     color: zm.Vec3f,
 };
 
+const UniformBufferObject = packed struct {
+    model: zm.Mat4f,
+    view: zm.Mat4f,
+    proj: zm.Mat4f,
+};
+
 pub fn main() !void {
     log.set_level(.DEBUG);
 
@@ -57,7 +63,12 @@ pub fn main() !void {
     var rectangle_index_buffer = graphics.IndexBuffer.init(&context, renctangle_indices);
     defer rectangle_index_buffer.deinit();
 
-    const pipeline = try graphics.Pipeline.init_inline(&context, "basic", &triangle_buffer.get_layout(), &target);
+    const vs = try graphics.VertexShader.init(&context, "basic");
+    defer vs.deinit();
+    const fs = try graphics.FragmentShader.init(&context, "basic");
+    defer fs.deinit();
+
+    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &triangle_buffer.get_layout(), &target);
     defer pipeline.deinit();
 
     var triangle = graphics.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();

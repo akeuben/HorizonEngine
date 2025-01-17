@@ -125,7 +125,13 @@ pub const Pipeline = union(context.API) {
     /// **Parameter** `target`: The target this pipeline will render to.
     /// **Returns** The created pipeline
     /// **Error** `LinkingError`: The pipeline failed to link.
-    pub fn init(ctx: *const context.Context, vertex_shader: *const VertexShader, fragment_shader: *const FragmentShader, buffer_layout: *const BufferLayout, target: *const RenderTarget) ShaderError!Pipeline {
+    pub fn init(
+        ctx: *const context.Context,
+        vertex_shader: *const VertexShader,
+        fragment_shader: *const FragmentShader,
+        buffer_layout: *const BufferLayout,
+        target: *const RenderTarget,
+    ) ShaderError!Pipeline {
         return switch (ctx.*) {
             .OPEN_GL => Pipeline{
                 .OPEN_GL = try opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL, buffer_layout),
@@ -137,23 +143,6 @@ pub const Pipeline = union(context.API) {
                 .NONE = none.NonePipeline.init(),
             },
         };
-    }
-
-    /// Create a `Pipeline` and corresponding shaders from a shader name.
-    ///
-    /// **Parameter** `ctx`: The rendering context to create the pipeline for.
-    /// **Parameter** `name`: The filename of the shader files.
-    /// **Parameter** `buffer_layout`: The layout of a vertex
-    /// **Parameter** `target`: The target this pipeline will render to.
-    /// **Returns** The created pipeline
-    /// **Error** `LinkingError`: The pipeline failed to link.
-    pub fn init_inline(ctx: *const context.Context, comptime name: []const u8, buffer_layout: *const BufferLayout, target: *const RenderTarget) ShaderError!Pipeline {
-        const vertex_shader = try VertexShader.init(ctx, name);
-        defer vertex_shader.deinit();
-        const fragment_shader = try FragmentShader.init(ctx, name);
-        defer fragment_shader.deinit();
-
-        return Pipeline.init(ctx, &vertex_shader, &fragment_shader, buffer_layout, target);
     }
 
     // Destroy the given pipeline
