@@ -59,7 +59,7 @@ pub fn fatal(comptime format: []const u8, args: anytype) void {
     stdout.print("\n", .{}) catch {};
     print(.FATAL, format, args);
     stdout.print("\n", .{}) catch {};
-    std.process.exit(1);
+    @panic("A fatal exception occurred.");
 }
 
 pub fn set_level(level: LogLevel) void {

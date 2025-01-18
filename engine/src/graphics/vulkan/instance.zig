@@ -28,27 +28,34 @@ pub const Instance = struct {
         const supported_layers = try extension.get_supported_layers(ctx, layers);
         defer std.heap.page_allocator.free(supported_layers);
 
-        const create_info = vk.InstanceCreateInfo{
+        var create_info = vk.InstanceCreateInfo{
             .p_application_info = &app_info,
             .enabled_extension_count = @intCast(supported_extensions.len),
             .pp_enabled_extension_names = @ptrCast(supported_extensions),
             .enabled_layer_count = @intCast(supported_layers.len),
             .pp_enabled_layer_names = @ptrCast(supported_layers),
-            .p_next = &validation.debugCreateInfo,
+            .p_next = null,
         };
+        if (ctx.creation_options.use_debug) {
+            log.debug("Loading debug extension for instance creation...", .{});
+            create_info.p_next = &validation.debugCreateInfo;
+        }
         const vk_instance = try ctx.vkb.createInstance(&create_info, null);
 
         const vki = try allocator.create(context.InstanceDispatch);
-        vki.* = context.InstanceDispatch.load(vk_instance, ctx.vkb.dispatch.vkGetInstanceProcAddr) catch {
-            log.fatal("Failed to load vulkan instance bindings", .{});
-            std.process.exit(1);
-        };
+        vki.* = context.InstanceDispatch.loadNoFail(vk_instance, ctx.vkb.dispatch.vkGetInstanceProcAddr);
         const instance = context.Instance.init(vk_instance, vki);
 
-        const debug_messenger = instance.createDebugUtilsMessengerEXT(&validation.debugCreateInfo, null) catch blk: {
-            log.warn("Failed to create debug messenger", .{});
-            break :blk null;
-        };
+        var debug_messenger: vk.DebugUtilsMessengerEXT = .null_handle;
+        if (ctx.creation_options.use_debug) {
+            log.debug("Using debug: True", .{});
+            debug_messenger = instance.createDebugUtilsMessengerEXT(&validation.debugCreateInfo, null) catch blk: {
+                log.warn("Failed to create debug messenger", .{});
+                break :blk vk.DebugUtilsMessengerEXT.null_handle;
+            };
+        } else {
+            log.debug("Using debug: False", .{});
+        }
 
         return Instance{
             .instance = instance,
@@ -59,7 +66,7 @@ pub const Instance = struct {
     }
 
     pub fn deinit(self: Instance) void {
-        if (self.debug_messenger != null) self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger.?, null);
+        if (self.debug_messenger != vk.DebugUtilsMessengerEXT.null_handle) self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger.?, null);
         self.instance.destroyInstance(null);
     }
 };

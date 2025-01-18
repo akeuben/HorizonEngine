@@ -6,6 +6,7 @@ const OpenGLVertexBuffer = @import("buffer.zig").OpenGLVertexBuffer;
 const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLRenderTarget = @import("target.zig").OpenGLRenderTarget;
 const Context = @import("../context.zig").Context;
+const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
     log.debug("A GL error occurred.", .{});
@@ -22,7 +23,9 @@ pub const OpenGLContext = struct {
     target: OpenGLRenderTarget,
     allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.Allocator) *OpenGLContext {
+    creation_options: ContextCreationOptions,
+
+    pub fn init(allocator: std.mem.Allocator, options: ContextCreationOptions) *OpenGLContext {
         const ctx = allocator.create(OpenGLContext) catch unreachable;
         ctx.target = .{
             // The default framebuffer defined by OpenGL
@@ -30,6 +33,7 @@ pub const OpenGLContext = struct {
             .ctx = ctx,
         };
         ctx.allocator = allocator;
+        ctx.creation_options = options;
 
         return ctx;
     }
@@ -46,7 +50,7 @@ pub const OpenGLContext = struct {
 
         gl.enable(gl.FRAMEBUFFER_SRGB);
         gl.enable(gl.DEBUG_OUTPUT);
-        gl.debugMessageCallback(gl_error_callback, null);
+        if (self.creation_options.use_debug) gl.debugMessageCallback(gl_error_callback, null);
         log.debug("Enabled gl debug callback", .{});
     }
 

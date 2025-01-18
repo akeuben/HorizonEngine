@@ -22,27 +22,27 @@ pub const Context = union(API) {
     /// Initializes a new OpenGL context
     ///
     /// **Parameter** `allocator`: The allocator to use for the duration of this context's lifetime.
-    pub fn init_open_gl(allocator: std.mem.Allocator) Context {
+    pub fn init_open_gl(allocator: std.mem.Allocator, options: ContextCreationOptions) Context {
         return Context{
-            .OPEN_GL = opengl.OpenGLContext.init(allocator),
+            .OPEN_GL = opengl.OpenGLContext.init(allocator, options),
         };
     }
 
     /// Initializes a new Vulkan context
     ///
     /// **Parameter** `allocator`: The allocator to use for the duration of this context's lifetime.
-    pub fn init_vulkan(allocator: std.mem.Allocator) Context {
+    pub fn init_vulkan(allocator: std.mem.Allocator, options: ContextCreationOptions) Context {
         return Context{
-            .VULKAN = vulkan.VulkanContext.init(allocator),
+            .VULKAN = vulkan.VulkanContext.init(allocator, options),
         };
     }
 
     /// Initializes a new headless context
     ///
     /// **Parameter** `allocator`: The allocator to use for the duration of this context's lifetime.
-    pub fn init_none(allocator: std.mem.Allocator) Context {
+    pub fn init_none(allocator: std.mem.Allocator, options: ContextCreationOptions) Context {
         return Context{
-            .NONE = none.NoneContext.init(allocator),
+            .NONE = none.NoneContext.init(allocator, options),
         };
     }
 
@@ -100,4 +100,10 @@ pub const Context = union(API) {
             .NONE => none.NoneContext.notify_resized(self.NONE),
         }
     }
+};
+
+/// Context Creation Options
+pub const ContextCreationOptions = struct {
+    /// Whether to enable debug logging for the context
+    use_debug: bool,
 };

@@ -33,6 +33,8 @@ const UniformBufferObject = packed struct {
     proj: zm.Mat4f,
 };
 
+const use_debug = false;
+
 pub fn main() !void {
     log.set_level(.DEBUG);
 
@@ -41,13 +43,13 @@ pub fn main() !void {
 
     var context: graphics.Context = undefined;
     if (args.len != 2) {
-        context = graphics.Context.init_none(std.heap.page_allocator);
+        context = graphics.Context.init_none(std.heap.page_allocator, .{ .use_debug = use_debug });
     } else if (std.mem.eql(u8, "vk", args[1])) {
-        context = graphics.Context.init_vulkan(std.heap.page_allocator);
+        context = graphics.Context.init_vulkan(std.heap.page_allocator, .{ .use_debug = use_debug });
     } else if (std.mem.eql(u8, "gl", args[1])) {
-        context = graphics.Context.init_open_gl(std.heap.page_allocator);
+        context = graphics.Context.init_open_gl(std.heap.page_allocator, .{ .use_debug = use_debug });
     } else {
-        context = graphics.Context.init_none(std.heap.page_allocator);
+        context = graphics.Context.init_none(std.heap.page_allocator, .{ .use_debug = use_debug });
     }
     defer context.deinit();
 

@@ -14,12 +14,13 @@ const VulkanPipeline = @import("shader.zig").VulkanPipeline;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
 const vk_allocator = @import("allocator.zig");
 const Context = @import("../context.zig").Context;
+const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 
 const apis: []const vk.ApiInfo = &.{
     vk.features.version_1_0,
     vk.extensions.ext_debug_utils,
-    vk.extensions.khr_surface,
     vk.extensions.khr_swapchain,
+    vk.extensions.khr_surface,
 };
 pub const BaseDispatch = vk.BaseWrapper(apis);
 pub const InstanceDispatch = vk.InstanceWrapper(apis);
@@ -30,6 +31,8 @@ pub const Device = vk.DeviceProxy(apis);
 pub const VulkanContext = struct {
     loaded: bool = false,
     allocator: std.mem.Allocator,
+
+    creation_options: ContextCreationOptions,
 
     vkb: BaseDispatch,
 
@@ -50,9 +53,10 @@ pub const VulkanContext = struct {
 
     target: VulkanRenderTarget,
 
-    pub fn init(allocator: std.mem.Allocator) *VulkanContext {
+    pub fn init(allocator: std.mem.Allocator, options: ContextCreationOptions) *VulkanContext {
         var ctx = allocator.create(VulkanContext) catch unreachable;
         ctx.allocator = allocator;
+        ctx.creation_options = options;
 
         return ctx;
     }
@@ -61,7 +65,7 @@ pub const VulkanContext = struct {
         self.loaded = true;
         log.debug("Loading vulkan base bindings", .{});
         self.vkb = BaseDispatch.load(@as(*const fn (vk.Instance, [*c]const u8) callconv(.C) ?*const fn () callconv(.C) void, @ptrCast(window.get_proc_addr_fn()))) catch {
-            log.fatal("Failed to load vulkan bindings", .{});
+            log.fatal("Failed to load base vulkan bindings", .{});
             std.process.exit(1);
         };
         log.debug("Loaded vulkan base bindings", .{});
@@ -75,15 +79,11 @@ pub const VulkanContext = struct {
         var layers = std.ArrayList(VulkanLayer).init(self.allocator);
         defer layers.deinit();
 
-        const glfw_instance_extensions = window.get_vk_exts(self.allocator);
-        defer self.allocator.free(glfw_instance_extensions);
+        const window_instance_extensions = window.get_vk_exts(self.allocator);
+        defer self.allocator.free(window_instance_extensions);
 
-        instance_extensions.appendSlice(glfw_instance_extensions) catch {};
-        instance_extensions.appendSlice(validation.debug_required_instance_extensions) catch {};
-        instance_extensions.append(.{
-            .name = vk.extensions.khr_surface.name,
-            .required = true,
-        }) catch {};
+        instance_extensions.appendSlice(window_instance_extensions) catch {};
+        if (self.creation_options.use_debug) instance_extensions.appendSlice(validation.debug_required_instance_extensions) catch {};
 
         device_extensions.append(.{
             .name = vk.extensions.khr_swapchain.name,
@@ -94,7 +94,7 @@ pub const VulkanContext = struct {
             .required = true,
         }) catch {};
 
-        layers.appendSlice(validation.debug_required_layers) catch {};
+        if (self.creation_options.use_debug) layers.appendSlice(validation.debug_required_layers) catch {};
 
         const instance_extension_slice: []VulkanExtension = instance_extensions.toOwnedSlice() catch &.{};
         const device_extension_slice: []VulkanExtension = device_extensions.toOwnedSlice() catch &.{};

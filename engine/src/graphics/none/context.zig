@@ -4,14 +4,18 @@ const Window = @import("../../platform/window.zig").Window;
 const NoneVertexBuffer = @import("buffer.zig").NoneVertexBuffer;
 const NonePipeline = @import("shader.zig").NonePipeline;
 const NoneRenderTarget = @import("target.zig").NoneRenderTarget;
+const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 
 pub const NoneContext = struct {
     allocator: std.mem.Allocator,
     target: NoneRenderTarget,
 
-    pub fn init(allocator: std.mem.Allocator) *NoneContext {
+    creation_options: ContextCreationOptions,
+
+    pub fn init(allocator: std.mem.Allocator, options: ContextCreationOptions) *NoneContext {
         var ctx = allocator.create(NoneContext) catch unreachable;
         ctx.target = .{};
+        ctx.creation_options = options;
 
         return ctx;
     }
