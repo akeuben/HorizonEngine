@@ -129,15 +129,14 @@ pub const Pipeline = union(context.API) {
         ctx: *const context.Context,
         vertex_shader: *const VertexShader,
         fragment_shader: *const FragmentShader,
-        buffer_layout: *const BufferLayout,
-        target: *const RenderTarget,
+        buffer_layout: *const BufferLayout
     ) ShaderError!Pipeline {
         return switch (ctx.*) {
             .OPEN_GL => Pipeline{
                 .OPEN_GL = try opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL, buffer_layout),
             },
             .VULKAN => Pipeline{
-                .VULKAN = try vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &target.VULKAN),
+                .VULKAN = try vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout),
             },
             .NONE => Pipeline{
                 .NONE = none.NonePipeline.init(),

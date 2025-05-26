@@ -16,12 +16,6 @@ const vk_allocator = @import("allocator.zig");
 const Context = @import("../context.zig").Context;
 const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 
-const apis: []const vk.ApiInfo = &.{
-    vk.features.version_1_3,
-    vk.extensions.ext_debug_utils,
-    vk.extensions.khr_swapchain,
-    vk.extensions.khr_surface,
-};
 pub const BaseDispatch = vk.BaseWrapper;
 pub const InstanceDispatch = vk.InstanceWrapper;
 pub const DeviceDispatch = vk.DeviceWrapper;

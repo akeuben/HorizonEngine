@@ -70,7 +70,7 @@ pub fn main() !void {
     const fs = try graphics.FragmentShader.init(&context, "basic");
     defer fs.deinit();
 
-    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &triangle_buffer.get_layout(), &target);
+    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &triangle_buffer.get_layout());
     defer pipeline.deinit();
 
     var triangle = graphics.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();

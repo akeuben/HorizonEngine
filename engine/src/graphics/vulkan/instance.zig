@@ -18,7 +18,7 @@ pub const Instance = struct {
             .application_version = @bitCast(vk.makeApiVersion(1, 0, 0, 0)),
             .p_engine_name = "engine",
             .engine_version = @bitCast(vk.makeApiVersion(1, 0, 0, 0)),
-            .api_version = @bitCast(vk.API_VERSION_1_0),
+            .api_version = @bitCast(vk.API_VERSION_1_3),
             .p_next = null,
         };
 

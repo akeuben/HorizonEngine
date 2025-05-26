@@ -91,8 +91,6 @@ pub const Swapchain = struct {
     command_buffers: [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
     resized: bool,
     allocator: std.mem.Allocator,
-    renderpass: vk.RenderPass,
-    framebuffers: []vk.Framebuffer,
 
     pub fn init(ctx: *const context.VulkanContext, window: *const Window, allocator: std.mem.Allocator) !Swapchain {
         var swapchain: Swapchain = undefined;
@@ -122,50 +120,6 @@ pub const Swapchain = struct {
         swapchain.image_available_semaphores = image_semaphores;
         swapchain.render_finished_semaphores = render_semaphores;
 
-        const attachment_description = vk.AttachmentDescription{
-            .format = swapchain.format,
-            .samples = .{ .@"1_bit" = true },
-            .load_op = .clear,
-            .store_op = .store,
-            .stencil_load_op = .dont_care,
-            .stencil_store_op = .dont_care,
-            .initial_layout = .undefined,
-            .final_layout = .present_src_khr,
-        };
-
-        const attachment_reference = vk.AttachmentReference{
-            .attachment = 0,
-            .layout = .color_attachment_optimal,
-        };
-
-        const subpass_dependency = vk.SubpassDependency{
-            .src_subpass = vk.SUBPASS_EXTERNAL,
-            .dst_subpass = 0,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .src_access_mask = .{},
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
-        };
-
-        const subpass_description = vk.SubpassDescription{
-            .pipeline_bind_point = .graphics,
-            .color_attachment_count = 1,
-            .p_color_attachments = @ptrCast(&attachment_reference),
-        };
-
-        const renderpass_create_info = vk.RenderPassCreateInfo{
-            .attachment_count = 1,
-            .p_attachments = @ptrCast(&attachment_description),
-            .subpass_count = 1,
-            .p_subpasses = @ptrCast(&subpass_description),
-            .dependency_count = 1,
-            .p_dependencies = @ptrCast(&subpass_dependency),
-        };
-
-        swapchain.renderpass = try ctx.logical_device.device.createRenderPass(&renderpass_create_info, null);
-
-        swapchain.framebuffers = try create_framebuffers(&swapchain);
-
         const command_buffer_info = vk.CommandBufferAllocateInfo{
             .command_pool = ctx.command_pool,
             .level = .primary,
@@ -175,25 +129,6 @@ pub const Swapchain = struct {
         try ctx.logical_device.device.allocateCommandBuffers(&command_buffer_info, @ptrCast(&swapchain.command_buffers));
 
         return swapchain;
-    }
-
-    fn create_framebuffers(self: *const Swapchain) ![]vk.Framebuffer {
-        const framebuffers = try std.heap.page_allocator.alloc(vk.Framebuffer, self.image_views.len);
-
-        for (self.image_views, 0..) |image_view, i| {
-            const attachments: []const vk.ImageView = &.{image_view};
-            const info = vk.FramebufferCreateInfo{
-                .render_pass = self.renderpass,
-                .attachment_count = 1,
-                .p_attachments = @ptrCast(attachments.ptr),
-                .width = self.extent.width,
-                .height = self.extent.height,
-                .layers = 1,
-            };
-            framebuffers[i] = try self.ctx.logical_device.device.createFramebuffer(@ptrCast(&info), null);
-        }
-
-        return framebuffers;
     }
 
     fn create_swapchain(self: *Swapchain, size: @Vector(2, i32)) !void {
@@ -356,10 +291,6 @@ pub const Swapchain = struct {
         }
     }
 
-    pub fn get_renderpass(self: Swapchain) vk.RenderPass {
-        return self.renderpass;
-    }
-
     pub fn start(self: *const Swapchain) void {
         self.ctx.logical_device.device.resetCommandBuffer(self.command_buffers[self.current_frame], .{}) catch {
             log.err("Failed to reset command buffer", .{});
@@ -376,18 +307,26 @@ pub const Swapchain = struct {
 
         const clear_color = vk.ClearValue{ .color = .{ .float_32 = .{ 0, 0, 0, 1 } } };
 
-        const pass_info = vk.RenderPassBeginInfo{
-            .render_pass = self.renderpass,
-            .framebuffer = self.framebuffers[self.current_image_index.?],
-            .render_area = .{
-                .offset = .{ .x = 0, .y = 0 },
-                .extent = self.extent,
-            },
-            .clear_value_count = 1,
-            .p_clear_values = @ptrCast(&clear_color),
+        const color_attachment = vk.RenderingAttachmentInfo {
+            .image_view = self.image_views[self.current_image_index.?],
+            .image_layout = .attachment_optimal,
+            .load_op = .clear,
+            .store_op = .store,
+            .clear_value = clear_color,
+            .resolve_mode = .{ },
+            .resolve_image_view = .null_handle,
+            .resolve_image_layout = .undefined,
         };
 
-        self.ctx.logical_device.device.cmdBeginRenderPass(self.command_buffers[self.current_frame], &pass_info, .@"inline");
+        const rendering_info = vk.RenderingInfo {
+            .render_area = .{ .offset = .{ .x = 0, .y = 0 }, .extent = self.extent },
+            .layer_count = 1,
+            .color_attachment_count = 1,
+            .p_color_attachments = @ptrCast(&color_attachment),
+            .view_mask = 0,
+        };
+
+        self.ctx.logical_device.device.cmdBeginRendering(self.command_buffers[self.current_frame], &rendering_info);
 
         // Update viewport and scissor
         const viewport = vk.Viewport{
@@ -408,7 +347,7 @@ pub const Swapchain = struct {
     }
 
     pub fn end(self: *const Swapchain) void {
-        self.ctx.logical_device.device.cmdEndRenderPass(self.command_buffers[self.current_frame]);
+        self.ctx.logical_device.device.cmdEndRendering(self.command_buffers[self.current_frame]);
 
         self.ctx.logical_device.device.endCommandBuffer(self.command_buffers[self.current_frame]) catch {
             log.err("Failed to record command buffer", .{});
@@ -438,32 +377,14 @@ pub const Swapchain = struct {
     pub fn resize(self: *Swapchain, new_size: @Vector(2, i32)) void {
         self.ctx.logical_device.device.deviceWaitIdle() catch {};
 
-        // Destroy the old framebuffers
-        for (self.framebuffers) |framebuffer| {
-            self.ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
-        }
-        std.heap.page_allocator.free(self.framebuffers);
-
         // Destroy the old swapchain
         recreate(self, new_size) catch {
             log.fatal("Failed to recreate swapchain", .{});
             std.process.exit(1);
         };
-
-        // Create new framebuffers
-        self.framebuffers = create_framebuffers(self) catch {
-            log.fatal("Failed to recreate framebuffers", .{});
-            std.process.exit(1);
-        };
     }
 
     pub fn deinit(self: *const Swapchain) void {
-        for (self.framebuffers) |framebuffer| {
-            self.ctx.logical_device.device.destroyFramebuffer(framebuffer, null);
-        }
-        std.heap.page_allocator.free(self.framebuffers);
-        self.ctx.logical_device.device.destroyRenderPass(self.renderpass, null);
-
         for (0..MAX_FRAMES_IN_FLIGHT) |i| {
             self.ctx.logical_device.device.destroySemaphore(self.image_available_semaphores[i], null);
             self.ctx.logical_device.device.destroySemaphore(self.render_finished_semaphores[i], null);

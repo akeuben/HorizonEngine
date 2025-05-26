@@ -133,6 +133,10 @@ pub const LogicalDevice = struct {
         const supported_layers = try extension.get_supported_layers(ctx, layers);
         const supported_extensions = try extension.get_supported_device_extensions(ctx, physical_device.device, extensions);
 
+        const dynamic_rendering_feature = vk.PhysicalDeviceDynamicRenderingFeatures {
+            .dynamic_rendering = vk.TRUE,
+        };
+        
         const create_info = vk.DeviceCreateInfo{
             .p_queue_create_infos = @ptrCast(queue_create_info.ptr),
             .queue_create_info_count = @intCast(queue_create_info.len),
@@ -141,6 +145,7 @@ pub const LogicalDevice = struct {
             .enabled_layer_count = @intCast(supported_layers.len),
             .pp_enabled_extension_names = @ptrCast(supported_extensions.ptr),
             .enabled_extension_count = @intCast(supported_extensions.len),
+            .p_next = &dynamic_rendering_feature,
         };
 
         const vk_device = try ctx.instance.instance.createDevice(physical_device.device, &create_info, null);

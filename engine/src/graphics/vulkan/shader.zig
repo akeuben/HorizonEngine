@@ -75,7 +75,7 @@ pub const VulkanPipeline = struct {
     pipeline: vk.Pipeline,
     context: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout, target: *const VulkanRenderTarget) ShaderError!VulkanPipeline {
+    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout) ShaderError!VulkanPipeline {
         const vertex_shader_stage_info = vk.PipelineShaderStageCreateInfo{
             .stage = .{ .vertex_bit = true, .fragment_bit = false },
             .module = vertex_shader.module,
@@ -189,6 +189,14 @@ pub const VulkanPipeline = struct {
             return ShaderError.LinkingError;
         };
 
+        const rendering_create_info = vk.PipelineRenderingCreateInfo {
+            .color_attachment_count = 1,
+            .p_color_attachment_formats = @ptrCast(&ctx.swapchain.format),
+            .view_mask = 0,
+            .depth_attachment_format = ctx.swapchain.format,
+            .stencil_attachment_format = ctx.swapchain.format,
+        };
+
         const create_info = vk.GraphicsPipelineCreateInfo{
             .stage_count = 2,
             .p_stages = @ptrCast(shader_stages),
@@ -201,10 +209,10 @@ pub const VulkanPipeline = struct {
             .p_color_blend_state = @ptrCast(&color_blending),
             .p_dynamic_state = @ptrCast(&dynamic_state),
             .layout = vk_layout,
-            .render_pass = target.get_renderpass(),
             .subpass = 0,
             .base_pipeline_handle = .null_handle,
             .base_pipeline_index = -1,
+            .p_next = &rendering_create_info,
         };
         var pipeline: vk.Pipeline = undefined;
         const result = ctx.logical_device.device.createGraphicsPipelines(.null_handle, 1, @ptrCast(&create_info), null, @ptrCast(&pipeline)) catch {
