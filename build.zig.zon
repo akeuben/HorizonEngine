@@ -1,10 +1,11 @@
 .{
-    .name = "engine",
+    .name = .engine,
+    .fingerprint = 0xe8a81a8d9f678cbf,
 
     .version = "0.0.0",
 
     .dependencies = .{
-        .vulkan_zig = .{ .url = "https://github.com/Snektron/vulkan-zig/archive/06dae6c.tar.gz", .hash = "1220edeb3fc7dfc40e6fde705a108edce0a3cc76d165a7c9919d1fb037eccec43372" },
+        .vulkan_zig = .{ .url = "https://github.com/Snektron/vulkan-zig/archive/604416bf44baf95568c428e1aa55499aa8e07607.tar.gz", .hash = "vulkan-0.0.0-AAAAAC5bAwASnqFlLMD4V42z3LolS8n7xv3RlbXhAhv0", },
         .zm = .{
             .url = "git+https://github.com/griush/zm#b4c563c1f52b80ccf7c81bdb4dc6b3ae50b09c8c",
             .hash = "1220897b0db58d1867fef1672a72f886f27af6a22e561797c48c9f793b06961c60ab",
