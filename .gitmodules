@@ -6,4 +6,4 @@
 	url = https://github.com/glfw/glfw
 [submodule "vendor/zig-opengl"]
 	path = vendor/zig-opengl
-	url = https://github.com/ikskuh/zig-opengl
+	url = https://github.com/MidlightStudio/zig-opengl

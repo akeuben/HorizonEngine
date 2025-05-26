@@ -73,7 +73,7 @@ pub fn main() !void {
     const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &triangle_buffer.get_layout());
     defer pipeline.deinit();
 
-    var triangle = graphics.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();
+    const triangle = graphics.VertexRenderObject.init(&context, &pipeline, &triangle_buffer).object();
     const rectangle = graphics.IndexRenderObject.init(&context, &pipeline, &rectangle_buffer, &rectangle_index_buffer).object();
 
     while (!window.should_close()) {
