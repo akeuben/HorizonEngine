@@ -146,7 +146,7 @@ pub const LogicalDevice = struct {
         const vk_device = try ctx.instance.instance.createDevice(physical_device.device, &create_info, null);
 
         const vkd = try allocator.create(context.DeviceDispatch);
-        vkd.* = context.DeviceDispatch.loadNoFail(vk_device, ctx.instance.instance.wrapper.dispatch.vkGetDeviceProcAddr);
+        vkd.* = context.DeviceDispatch.load(vk_device, ctx.instance.instance.wrapper.dispatch.vkGetDeviceProcAddr.?);
         const device = context.Device.init(vk_device, vkd);
 
         return LogicalDevice{

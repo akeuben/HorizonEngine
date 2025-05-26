@@ -15,10 +15,10 @@ pub const Instance = struct {
     pub fn init(ctx: *const context.VulkanContext, extensions: []const extension.VulkanExtension, layers: []const extension.VulkanLayer, name: ?[*:0]const u8, allocator: std.mem.Allocator) !Instance {
         const app_info = vk.ApplicationInfo{
             .p_application_name = name,
-            .application_version = vk.makeApiVersion(1, 0, 0, 0),
+            .application_version = @bitCast(vk.makeApiVersion(1, 0, 0, 0)),
             .p_engine_name = "engine",
-            .engine_version = vk.makeApiVersion(1, 0, 0, 0),
-            .api_version = vk.API_VERSION_1_0,
+            .engine_version = @bitCast(vk.makeApiVersion(1, 0, 0, 0)),
+            .api_version = @bitCast(vk.API_VERSION_1_0),
             .p_next = null,
         };
 
@@ -43,7 +43,7 @@ pub const Instance = struct {
         const vk_instance = try ctx.vkb.createInstance(&create_info, null);
 
         const vki = try allocator.create(context.InstanceDispatch);
-        vki.* = context.InstanceDispatch.loadNoFail(vk_instance, ctx.vkb.dispatch.vkGetInstanceProcAddr);
+        vki.* = context.InstanceDispatch.load(vk_instance, ctx.vkb.dispatch.vkGetInstanceProcAddr.?);
         const instance = context.Instance.init(vk_instance, vki);
 
         var debug_messenger: vk.DebugUtilsMessengerEXT = .null_handle;

@@ -17,16 +17,16 @@ const Context = @import("../context.zig").Context;
 const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 
 const apis: []const vk.ApiInfo = &.{
-    vk.features.version_1_0,
+    vk.features.version_1_3,
     vk.extensions.ext_debug_utils,
     vk.extensions.khr_swapchain,
     vk.extensions.khr_surface,
 };
-pub const BaseDispatch = vk.BaseWrapper(apis);
-pub const InstanceDispatch = vk.InstanceWrapper(apis);
-pub const DeviceDispatch = vk.DeviceWrapper(apis);
-pub const Instance = vk.InstanceProxy(apis);
-pub const Device = vk.DeviceProxy(apis);
+pub const BaseDispatch = vk.BaseWrapper;
+pub const InstanceDispatch = vk.InstanceWrapper;
+pub const DeviceDispatch = vk.DeviceWrapper;
+pub const Instance = vk.InstanceProxy;
+pub const Device = vk.DeviceProxy;
 
 pub const VulkanContext = struct {
     loaded: bool = false,
@@ -64,10 +64,7 @@ pub const VulkanContext = struct {
     pub fn load(self: *VulkanContext, window: *const Window) void {
         self.loaded = true;
         log.debug("Loading vulkan base bindings", .{});
-        self.vkb = BaseDispatch.load(@as(*const fn (vk.Instance, [*c]const u8) callconv(.C) ?*const fn () callconv(.C) void, @ptrCast(window.get_proc_addr_fn()))) catch {
-            log.fatal("Failed to load base vulkan bindings", .{});
-            std.process.exit(1);
-        };
+        self.vkb = BaseDispatch.load(@as(*const fn (vk.Instance, [*c]const u8) callconv(.C) ?*const fn () callconv(.C) void, @ptrCast(window.get_proc_addr_fn())));
         log.debug("Loaded vulkan base bindings", .{});
 
         var instance_extensions = std.ArrayList(VulkanExtension).init(self.allocator);
