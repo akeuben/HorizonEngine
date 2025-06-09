@@ -12,8 +12,6 @@ pub const NoneRenderTarget = struct {
 
     pub fn start(_: *const NoneRenderTarget) void {}
 
-    pub fn render(_: *const NoneRenderTarget, _: *const RenderObject) void {}
-
     pub fn end(_: *const NoneRenderTarget) void {}
 
     pub fn deinit(_: NoneRenderTarget) void {}

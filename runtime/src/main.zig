@@ -79,10 +79,10 @@ pub fn main() !void {
     while (!window.should_close()) {
         window.start_frame();
 
-        target.start();
-        triangle.draw(&target);
-        rectangle.draw(&target);
-        target.end();
+        target.start()
+            .draw(&triangle)
+            .draw(&rectangle)
+            .end();
 
         window.swap();
         window.update();

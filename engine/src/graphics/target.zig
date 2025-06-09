@@ -37,25 +37,35 @@ pub const RenderTarget = union(context.API) {
     /// Starts a renderpass.
     ///
     /// **Parameter** `self`: The render target to start the pass for.
-    pub fn start(self: *const RenderTarget) void {
+    pub fn start(self: *const RenderTarget) ActiveRenderTarget {
         switch (self.*) {
             inline else => |case| case.start(),
         }
-    }
 
-    /// Ends a renderpass.
-    ///
-    /// **Parameter** `self`: The render target to end the pass for.
-    pub fn end(self: *const RenderTarget) void {
-        switch (self.*) {
-            inline else => |case| case.end(),
-        }
+        return .{
+            .target = self,
+        };
     }
 
     /// Destroy the render target.
     pub fn deinit(self: RenderTarget) void {
         switch (self) {
             inline else => |case| case.deinit(),
+        }
+    }
+};
+
+pub const ActiveRenderTarget = struct {
+    target: *const RenderTarget,
+
+    pub fn draw(self: ActiveRenderTarget, object: *const RenderObject) ActiveRenderTarget {
+        object.draw(self.target);
+        return self;
+    }
+
+    pub fn end(self: ActiveRenderTarget) void {
+        switch(self.target.*) {
+            inline else => |case| case.end(),
         }
     }
 };
