@@ -41,12 +41,12 @@ pub const VertexShader = union(context.API) {
     /// **Returns** The created shader
     /// **Error** `CompilationError` the shader failed to compile.
     pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!VertexShader {
-        const shader_data = read_shader_file(name ++ ".vert.spv") catch return ShaderError.CompilationError;
+        const shader_data = read_shader_file(name ++ ".vert") catch return ShaderError.CompilationError;
         defer std.heap.page_allocator.free(shader_data);
 
         return switch (ctx.*) {
             .OPEN_GL => VertexShader{
-                .OPEN_GL = opengl.OpenGLVertexShader.init(shader_data) catch {
+                .OPEN_GL = opengl.OpenGLVertexShader.init(ctx.OPEN_GL, shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },
@@ -82,12 +82,12 @@ pub const FragmentShader = union(context.API) {
     /// **Returns** The created shader
     /// **Error** `CompilationError`: the shader failed to compile.
     pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!FragmentShader {
-        const shader_data = read_shader_file(name ++ ".frag.spv") catch return ShaderError.CompilationError;
+        const shader_data = read_shader_file(name ++ ".frag") catch return ShaderError.CompilationError;
         defer std.heap.page_allocator.free(shader_data);
 
         return switch (ctx.*) {
             .OPEN_GL => FragmentShader{
-                .OPEN_GL = opengl.OpenGLFragmentShader.init(shader_data) catch {
+                .OPEN_GL = opengl.OpenGLFragmentShader.init(ctx.OPEN_GL, shader_data) catch {
                     return ShaderError.CompilationError;
                 },
             },

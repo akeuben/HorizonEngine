@@ -2,11 +2,37 @@ const gl = @import("gl");
 const ShaderError = @import("../shader.zig").ShaderError;
 const log = @import("../../utils/log.zig");
 const BufferLayout = @import("../type.zig").BufferLayout;
+const Context = @import("context.zig").OpenGLContext;
+
+const shaderc = @import("shaderc");
+
+var compiler: shaderc.Compiler = undefined;
+var initialized = false;
 
 pub const OpenGLVertexShader = struct {
     shader: u32,
 
-    pub fn init(data: []const u8) ShaderError!OpenGLVertexShader {
+    pub fn init(ctx: *const Context, sourceCode: []const u8) ShaderError!OpenGLVertexShader {
+        if(!initialized) {
+            compiler = shaderc.Compiler.initialize();
+            initialized = true;
+        }
+        const options = shaderc.CompileOptions.initialize();
+        defer options.release();
+        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
+        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
+        options.setVersion(shaderc.Env.Target.OpenGL, shaderc.Env.VulkanVersion.@"gl45");
+        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Vertex, "main", options) catch |e| {
+            log.err("Failed to compile vertex shader: {}", .{e});
+            return ShaderError.CompilationError;
+        };
+        if(result.getCompilationStatus() == .Success) {
+            log.debug("Compiled (1) vertex shader.", .{});
+        } else {
+            log.err("Failed to compile vertex shader: {s}", .{result.getErrorMessage()});
+            return ShaderError.CompilationError;
+        }
+        const data = result.getBytes();
         const shader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
         gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);
@@ -32,7 +58,27 @@ pub const OpenGLVertexShader = struct {
 pub const OpenGLFragmentShader = struct {
     shader: u32,
 
-    pub fn init(data: []const u8) ShaderError!OpenGLFragmentShader {
+    pub fn init(ctx: *const Context, sourceCode: []const u8) ShaderError!OpenGLFragmentShader {
+        if(!initialized) {
+            compiler = shaderc.Compiler.initialize();
+            initialized = true;
+        }
+        const options = shaderc.CompileOptions.initialize();
+        defer options.release();
+        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
+        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
+        options.setVersion(shaderc.Env.Target.OpenGL, shaderc.Env.VulkanVersion.@"gl45");
+        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Fragment, "main", options) catch |e| {
+            log.err("Failed to compile fragment shader: {}", .{e});
+            return ShaderError.CompilationError;
+        };
+        if(result.getCompilationStatus() == .Success) {
+            log.debug("Compiled (1) fragment shader.", .{});
+        } else {
+            log.err("Failed to compile fragment shader: {s}", .{result.getErrorMessage()});
+            return ShaderError.CompilationError;
+        }
+        const data = result.getBytes();
         const shader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
         gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);

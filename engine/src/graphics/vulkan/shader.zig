@@ -7,11 +7,36 @@ const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
 const std = @import("std");
 const types = @import("../type.zig");
 
+const shaderc = @import("shaderc");
+
+var compiler: shaderc.Compiler = undefined;
+var initialized = false;
+
 pub const VulkanVertexShader = struct {
     module: vk.ShaderModule,
     ctx: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, data: []const u8) ShaderError!VulkanVertexShader {
+    pub fn init(ctx: *const context.VulkanContext, sourceCode: []const u8) ShaderError!VulkanVertexShader {
+        if(!initialized) {
+            compiler = shaderc.Compiler.initialize();
+            initialized = true;
+        }
+        const options = shaderc.CompileOptions.initialize();
+        defer options.release();
+        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
+        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
+        options.setVersion(shaderc.Env.Target.Vulkan, shaderc.Env.VulkanVersion.@"3");
+        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Vertex, "main", options) catch |e| {
+            log.err("Failed to compile vertex shader: {}", .{e});
+            return ShaderError.CompilationError;
+        };
+        if(result.getCompilationStatus() == .Success) {
+            log.debug("Compiled (1) vertex shader.", .{});
+        } else {
+            log.err("Failed to compile vertex shader: {s}", .{result.getErrorMessage()});
+            return ShaderError.CompilationError;
+        }
+        const data = result.getBytes();
         const create_info = vk.ShaderModuleCreateInfo{
             .code_size = @intCast(data.len),
             .p_code = @ptrCast(@alignCast(data.ptr)),
@@ -34,7 +59,27 @@ pub const VulkanFragmentShader = struct {
     module: vk.ShaderModule,
     ctx: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, data: []const u8) ShaderError!VulkanFragmentShader {
+    pub fn init(ctx: *const context.VulkanContext, sourceCode: []const u8) ShaderError!VulkanFragmentShader {
+        if(initialized) {
+            compiler = shaderc.Compiler.initialize();
+            initialized = true;
+        }
+        const options = shaderc.CompileOptions.initialize();
+        defer options.release();
+        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
+        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
+        options.setVersion(shaderc.Env.Target.Vulkan, shaderc.Env.VulkanVersion.@"3");
+        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Fragment, "main", options) catch |e| {
+            log.err("Failed to compile fragment shader: {}", .{e});
+            return ShaderError.CompilationError;
+        };
+        if(result.getCompilationStatus() == .Success) {
+            log.debug("Compiled (1) fragment shader.", .{});
+        } else {
+            log.err("Failed to compile fragment shader: {s}", .{result.getErrorMessage()});
+            return ShaderError.CompilationError;
+        }
+        const data = result.getBytes();
         const create_info = vk.ShaderModuleCreateInfo{
             .code_size = @intCast(data.len),
             .p_code = @ptrCast(@alignCast(data.ptr)),

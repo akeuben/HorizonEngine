@@ -5,10 +5,17 @@
     .version = "0.0.0",
 
     .dependencies = .{
-        .vulkan_zig = .{ .url = "https://github.com/Snektron/vulkan-zig/archive/9b4090c852760ce3210562f62ffaf301479c38ba.tar.gz",  .hash = "vulkan-0.0.0-r7Ytx2dUAwDhoUvuIqliqPUbyDZZi0bl_CQIwspUpHs_", },
+        .vulkan_zig = .{
+            .url = "https://github.com/Snektron/vulkan-zig/archive/9b4090c852760ce3210562f62ffaf301479c38ba.tar.gz",
+            .hash = "vulkan-0.0.0-r7Ytx2dUAwDhoUvuIqliqPUbyDZZi0bl_CQIwspUpHs_",
+        },
         .zm = .{
             .url = "git+https://github.com/griush/zm#b4c563c1f52b80ccf7c81bdb4dc6b3ae50b09c8c",
             .hash = "1220897b0db58d1867fef1672a72f886f27af6a22e561797c48c9f793b06961c60ab",
+        },
+        .shaderc_zig = .{
+            .url = "git+https://github.com/tiawl/shaderc.zig#9b2703ec5273d56e0f6987e3d263b1ad592bbee8",
+            .hash = "shaderc_zig-1.0.0-mOl841ZjAwBWMHRQLiB-O0CGh3f_CykHbvOAI8SOwmy4",
         },
     },
 

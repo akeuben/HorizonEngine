@@ -14,6 +14,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     const vma = vendor.vma.build_vma(b, target, optimize);
     const glfw = vendor.glfw.build_glfw(b, target, optimize);
     const vulkan_zig = vendor.vulkan_zig.build_vulkan_zig(b);
+    const shaderc = vendor.shaderc.build_shaderc(b, target, optimize);
     const zig_opengl = vendor.zig_opengl.build_zig_opengl(b, target, optimize, .{
         .gl_version = GL_VERSION,
         .gl_extensions = GL_EXTENSIONS,
@@ -37,6 +38,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     lib.root_module.addImport("zm", zm.module("zm"));
     lib.root_module.addImport("vulkan", vulkan_zig);
     lib.root_module.addImport("gl", zig_opengl.root_module);
+    lib.root_module.addImport("shaderc", shaderc);
 
     // Link Options
     lib.root_module.addOptions("platform", options);
