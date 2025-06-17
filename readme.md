@@ -1,4 +1,4 @@
-# KappaEngine v2
+# HorizonEngine
 This is a data-driven game engine designed to create modable games. Written in ZIG.
 
 This is still a WIP.
@@ -9,7 +9,7 @@ Currently only supports Linux on X11. Planning support for Windows and Linux wit
 # Building
 Clone the repository with submodules:
 ```
-git clone --recursive https://akeuben.github.com/engine
+git clone --recursive https://akeuben.github.com/HorizonEngine
 ```
 
 If you cloned without cloning submodules, use:
