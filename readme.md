@@ -1,10 +1,12 @@
 # HorizonEngine
-This is a data-driven game engine designed to create modable games. Written in ZIG.
+<p align="center">
+  <img src="assets/logo_dark.svg" width=300 />
+</p>
 
-This is still a WIP.
+A data-driven game engine designed to create modable games. Written in zig.
 
 ## Platform Support
-Currently only supports Linux on X11. Planning support for Windows and Linux with wayland.
+Currently only supports Linux on X11 and  wayland. Support for windows will be added at a later time.
 
 # Building
 Clone the repository with submodules:
