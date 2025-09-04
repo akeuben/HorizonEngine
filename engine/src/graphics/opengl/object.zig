@@ -37,7 +37,7 @@ pub const OpenGLVertexRenderObject = struct {
         gl.bindVertexArray(self.gl_array);
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
-                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
             }
         }
         gl.drawArrays(gl.TRIANGLES, 0, @intCast(self.layout.length));
@@ -75,7 +75,7 @@ pub const OpenGLIndexRenderObject = struct {
         gl.bindVertexArray(self.gl_array);
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
-                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
             }
         }
         gl.drawElements(gl.TRIANGLES, @intCast(self.count), gl.UNSIGNED_INT, null);

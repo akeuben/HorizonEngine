@@ -44,11 +44,11 @@ pub const VertexBuffer = union(context.API) {
     /// **Parameter** `self`: the `VertexBuffer` to change the data for.
     /// **Parameter** `T`: the type the buffer will hold. This should be a struct containing valid shader types.
     /// **Parameter** `data`: the data the buffer should initially hold.
-    pub fn set_data(self: VertexBuffer, comptime T: anytype, data: []const T) void {
-        switch (self) {
+    pub fn set_data(self: *VertexBuffer, comptime T: anytype, data: []const T) void {
+        switch (self.*) {
             .OPEN_GL => self.OPEN_GL.set_data(T, data),
             .VULKAN => self.VULKAN.set_data(T, data),
-            inline else => log.not_implemented("VertexBuffer::set_data", self),
+            inline else => log.not_implemented("VertexBuffer::set_data", self.*),
         }
     }
 
@@ -110,11 +110,11 @@ pub const IndexBuffer = union(context.API) {
     ///
     /// **Parameter** `self`: the `IndexBuffer` to change the data for.
     /// **Parameter** `data`: the indices the buffer should initially hold.
-    pub fn set_data(self: IndexBuffer, data: []const u32) void {
-        switch (self) {
+    pub fn set_data(self: *IndexBuffer, data: []const u32) void {
+        switch (self.*) {
             .OPEN_GL => self.OPEN_GL.set_data(data),
             .VULKAN => self.VULKAN.set_data(data),
-            inline else => log.not_implemented("IndexBuffer::set_data", self),
+            inline else => log.not_implemented("IndexBuffer::set_data", self.*),
         }
     }
 
@@ -162,10 +162,10 @@ pub const UniformBuffer = union(context.API) {
     /// **Parameter** `self`: the `UniformBuffer` to change the data for.
     /// **Parameter** `T`: the type the buffer will hold. This should be a struct containing valid shader types.
     /// **Parameter** `data`: the data the buffer should initially hold.
-    pub fn set_data(self: UniformBuffer, comptime T: anytype, data: T) void {
-        switch (self) {
+    pub fn set_data(self: *UniformBuffer, comptime T: anytype, data: T) void {
+        switch (self.*) {
             .OPEN_GL => self.OPEN_GL.set_data(T, data),
-            inline else => log.not_implemented("VertexBuffer::set_data", self),
+            inline else => log.not_implemented("VertexBuffer::set_data", self.*),
         }
     }
 
@@ -190,6 +190,7 @@ pub const UniformBuffer = union(context.API) {
     pub fn deinit(self: *UniformBuffer) void {
         return switch (self.*) {
             .OPEN_GL => self.OPEN_GL.deinit(),
+            .VULKAN => self.VULKAN.deinit(),
             inline else => log.not_implemented("UniformBuffer::deinit", self.*),
         };
     }

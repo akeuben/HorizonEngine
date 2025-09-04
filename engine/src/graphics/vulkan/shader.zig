@@ -4,7 +4,8 @@ const log = @import("../../utils/log.zig");
 const ShaderError = @import("../shader.zig").ShaderError;
 const BufferLayout = @import("../type.zig").BufferLayout;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
-const ShaderBinding = @import("../shader.zig").ShaderBinding;
+const ShaderBindingLayoutElement = @import("../shader.zig").ShaderBindingLayoutElement;
+const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
 const ShaderBindingType = @import("../shader.zig").ShaderBindingType;
 const ShaderStage = @import("../shader.zig").ShaderStage;
 const std = @import("std");
@@ -297,19 +298,19 @@ fn stage_to_vulkan_type(t: ShaderStage) vk.ShaderStageFlags {
     };
 }
 
-pub const VulkanShaderBindingSet = struct {
-    bindings: []const ShaderBinding,
+pub const VulkanShaderBindingLayout = struct {
+    ctx: *const context.VulkanContext,
+    bindings: []const ShaderBindingLayoutElement,
     layout: vk.DescriptorSetLayout,
-    descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet,
 
-    pub fn init(ctx: *const context.VulkanContext, bindings: []const ShaderBinding) VulkanShaderBindingSet {
+    pub fn init(ctx: *const context.VulkanContext, bindings: []const ShaderBindingLayoutElement) VulkanShaderBindingLayout {
         const vk_bindings = ctx.allocator.alloc(vk.DescriptorSetLayoutBinding, bindings.len) catch unreachable;
 
         for(bindings, 0..) |binding, i| {
             vk_bindings[i] = vk.DescriptorSetLayoutBinding{
                 .binding = binding.point,
                 .descriptor_count = 1,
-                .descriptor_type = binding_type_to_vulkan_type(binding.element),
+                .descriptor_type = binding_type_to_vulkan_type(binding.binding_type),
                 .stage_flags = stage_to_vulkan_type(binding.stage),
                 .p_immutable_samplers = null,
             };
@@ -325,10 +326,27 @@ pub const VulkanShaderBindingSet = struct {
             unreachable;
         };
 
+        return VulkanShaderBindingLayout{
+            .ctx = ctx,
+            .bindings = bindings,
+            .layout = layout,
+        };
+    }
+
+    pub fn deinit(self: *const VulkanShaderBindingLayout) void {
+        self.ctx.logical_device.device.destroyDescriptorSetLayout(self.layout, null);
+    }
+};
+
+pub const VulkanShaderBindingSet = struct {
+    layout: vk.DescriptorSetLayout,
+    descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet,
+
+    pub fn init(ctx: *const context.VulkanContext, layout: *const VulkanShaderBindingLayout, bindings: []const CreateInfoShaderBindingElement) VulkanShaderBindingSet {
         var layouts: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSetLayout = undefined;
         
         for(0..MAX_FRAMES_IN_FLIGHT) |i| {
-            layouts[i] = layout;
+            layouts[i] = layout.layout;
         }
 
         const allocInfo = vk.DescriptorSetAllocateInfo{
@@ -373,8 +391,7 @@ pub const VulkanShaderBindingSet = struct {
         
         
         return VulkanShaderBindingSet{
-            .bindings = bindings,
-            .layout = layout,
+            .layout = layout.layout,
             .descriptor_sets = descriptor_sets,
         };
     }

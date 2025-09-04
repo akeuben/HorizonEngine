@@ -172,10 +172,20 @@ pub const ShaderBindingElement = union(ShaderBindingType) {
     UNIFORM_BUFFER: *UniformBuffer,
 };
 
-pub const ShaderBinding = struct {
-    element: ShaderBindingElement,
+pub const ShaderBindingLayoutElement = struct {
+    binding_type: ShaderBindingType,
     point: u32,
     stage: ShaderStage,
+};
+
+pub const BoundShaderBinding = struct {
+    element: ShaderBindingElement,
+    layout: ShaderBindingLayoutElement,
+};
+
+pub const CreateInfoShaderBindingElement = struct {
+    element: ShaderBindingElement, 
+    point: u32
 };
 
 pub const ShaderBindingSet = union(context.API) {
@@ -183,18 +193,55 @@ pub const ShaderBindingSet = union(context.API) {
     VULKAN: vulkan.VulkanShaderBindingSet,
     NONE: void,
 
-    pub fn init(ctx: *const context.Context, bindings: []const ShaderBinding) ShaderBindingSet {
+    fn init(ctx: *const context.Context, layout: *const ShaderBindingLayout, elements: []const CreateInfoShaderBindingElement) ShaderBindingSet {
         return switch(ctx.*) {
             .OPEN_GL => .{
-                .OPEN_GL = opengl.OpenGLShaderBindingSet.init(ctx.OPEN_GL, bindings),
+                .OPEN_GL = opengl.OpenGLShaderBindingSet.init(ctx.OPEN_GL, &layout.OPEN_GL, elements),
             },
             .VULKAN => .{
-                .VULKAN = vulkan.VulkanShaderBindingSet.init(ctx.VULKAN, bindings),
+                .VULKAN = vulkan.VulkanShaderBindingSet.init(ctx.VULKAN, &layout.VULKAN, elements),
             },
-            inline else => {
-                log.not_implemented("ShaderBindingSet::init", ctx.*);
-                unreachable;
-            }
+            .NONE => .{
+                .NONE = log.not_implemented("ShaderBindingSet::init", ctx.*),
+            },
         };
+    }
+
+    pub fn deinit(self: *const ShaderBindingSet) void {
+        switch(self.*) {
+            .OPEN_GL => self.OPEN_GL.deinit(),
+            inline else => log.not_implemented("ShaderBindingSet::deinit", self.*),
+        }
+    }
+};
+
+pub const ShaderBindingLayout = union(context.API) {
+    OPEN_GL: opengl.OpenGLShaderBindingLayout,
+    VULKAN: vulkan.VulkanShaderBindingLayout,
+    NONE: void,
+
+    pub fn init(ctx: *const context.Context, bindings: []const ShaderBindingLayoutElement) ShaderBindingLayout {
+        return switch(ctx.*) {
+            .OPEN_GL => .{
+                .OPEN_GL = opengl.OpenGLShaderBindingLayout.init(ctx.OPEN_GL, bindings),
+            },
+            .VULKAN => .{
+                .VULKAN = vulkan.VulkanShaderBindingLayout.init(ctx.VULKAN, bindings),
+            },
+            .NONE => .{
+                .NONE = log.not_implemented("ShaderBindingSet::init", ctx.*),
+            },
+        };
+    }
+
+    pub fn bind(self: *const ShaderBindingLayout, ctx: *const context.Context, bindings: []const CreateInfoShaderBindingElement) ShaderBindingSet {
+        return ShaderBindingSet.init(ctx, self, bindings);
+    }
+
+    pub fn deinit(self: *const ShaderBindingLayout) void {
+        switch(self.*) {
+            .VULKAN => self.VULKAN.deinit(),
+            inline else => log.not_implemented("ShaderBindingLayout::deinit", self.*),
+        }
     }
 };

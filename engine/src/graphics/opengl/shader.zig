@@ -1,11 +1,14 @@
 const gl = @import("gl");
 const _shader = @import("../shader.zig");
 const ShaderError = _shader.ShaderError;
-const ShaderBinding = _shader.ShaderBinding;
+const ShaderBindingLayoutElement = _shader.ShaderBindingLayoutElement;
 const ShaderStage = _shader.ShaderStage;
 const log = @import("../../utils/log.zig");
 const BufferLayout = @import("../type.zig").BufferLayout;
 const Context = @import("context.zig").OpenGLContext;
+const BoundShaderBinding = @import("../shader.zig").BoundShaderBinding;
+const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
+const ShaderBindingLayout = @import("../shader.zig").ShaderBindingLayout;
 
 const shaderc = @import("shaderc");
 
@@ -134,10 +137,48 @@ pub const OpenGLPipeline = struct {
 };
 
 pub const OpenGLShaderBindingSet = struct {
-    bindings: []const ShaderBinding,
+    ctx: *const Context,
+    bindings: []const BoundShaderBinding,
+    count: u32,
 
-    pub fn init(_: *const Context, bindings: []const ShaderBinding) OpenGLShaderBindingSet {
-        return OpenGLShaderBindingSet {
+    pub fn init(ctx: *const Context, layout: *const OpenGLShaderBindingLayout, elements: []const CreateInfoShaderBindingElement) OpenGLShaderBindingSet {
+        const bindings = ctx.allocator.alloc(BoundShaderBinding, elements.len) catch unreachable;
+        var i: u32 = 0;
+        for(elements) |element| {
+            var b: ?BoundShaderBinding = null;
+            for(layout.bindings) |binding| {
+                if(binding.point == element.point) {
+                    b = BoundShaderBinding{
+                        .element = element.element,
+                        .layout = binding,
+                    };
+                }
+            }
+            if(b == null) {
+                log.warn("Tried to bind a {s} that does not have a binding point in the layout", .{@tagName(element.element)});
+                continue;
+            }
+            bindings[i] = b.?;
+            i += 1;
+        }
+
+        return OpenGLShaderBindingSet{
+            .ctx = ctx,
+            .count = i,
+            .bindings = bindings,
+        };
+    }
+
+    pub fn deinit(self: *const OpenGLShaderBindingSet) void {
+        self.ctx.allocator.free(self.bindings);
+    }
+};
+
+pub const OpenGLShaderBindingLayout = struct {
+    bindings: []const ShaderBindingLayoutElement,
+
+    pub fn init(_: *const Context, bindings: []const ShaderBindingLayoutElement) OpenGLShaderBindingLayout {
+        return OpenGLShaderBindingLayout {
             .bindings = bindings,
         };
     }

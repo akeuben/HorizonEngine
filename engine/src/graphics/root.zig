@@ -6,6 +6,7 @@ pub const types = @import("type.zig");
 pub const VertexShader = @import("shader.zig").VertexShader;
 pub const FragmentShader = @import("shader.zig").FragmentShader;
 pub const Pipeline = @import("shader.zig").Pipeline;
+pub const ShaderBindingLayout = @import("shader.zig").ShaderBindingLayout;
 pub const ShaderBindingSet = @import("shader.zig").ShaderBindingSet;
 pub const ShaderBindingType = @import("shader.zig").ShaderBindingType;
 pub const RenderObject = @import("object.zig").RenderObject;
