@@ -1,5 +1,8 @@
 const gl = @import("gl");
-const ShaderError = @import("../shader.zig").ShaderError;
+const _shader = @import("../shader.zig");
+const ShaderError = _shader.ShaderError;
+const ShaderBinding = _shader.ShaderBinding;
+const ShaderStage = _shader.ShaderStage;
 const log = @import("../../utils/log.zig");
 const BufferLayout = @import("../type.zig").BufferLayout;
 const Context = @import("context.zig").OpenGLContext;
@@ -104,7 +107,7 @@ pub const OpenGLFragmentShader = struct {
 pub const OpenGLPipeline = struct {
     program: u32,
 
-    pub fn init(vertex_shader: *const OpenGLVertexShader, fragment_shader: *const OpenGLFragmentShader, _: *const BufferLayout) ShaderError!OpenGLPipeline {
+    pub fn init(vertex_shader: *const OpenGLVertexShader, fragment_shader: *const OpenGLFragmentShader, _: *const BufferLayout, _: *const OpenGLShaderBindingSet) ShaderError!OpenGLPipeline {
         const program: u32 = gl.createProgram();
         gl.attachShader(program, vertex_shader.shader);
         gl.attachShader(program, fragment_shader.shader);
@@ -127,5 +130,15 @@ pub const OpenGLPipeline = struct {
 
     pub fn deinit(self: OpenGLPipeline) void {
         gl.deleteProgram(self.program);
+    }
+};
+
+pub const OpenGLShaderBindingSet = struct {
+    bindings: []const ShaderBinding,
+
+    pub fn init(_: *const Context, bindings: []const ShaderBinding) OpenGLShaderBindingSet {
+        return OpenGLShaderBindingSet {
+            .bindings = bindings,
+        };
     }
 };

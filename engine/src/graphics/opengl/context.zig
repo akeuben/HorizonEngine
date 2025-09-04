@@ -52,6 +52,10 @@ pub const OpenGLContext = struct {
         gl.enable(gl.DEBUG_OUTPUT);
         if (self.creation_options.use_debug) gl.debugMessageCallback(gl_error_callback, null);
         log.debug("Enabled gl debug callback", .{});
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        gl.frontFace(gl.CCW);
     }
 
     pub fn notify_resized(_: *OpenGLContext, new_size: @Vector(2, i32)) void {

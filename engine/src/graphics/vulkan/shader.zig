@@ -4,8 +4,12 @@ const log = @import("../../utils/log.zig");
 const ShaderError = @import("../shader.zig").ShaderError;
 const BufferLayout = @import("../type.zig").BufferLayout;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
+const ShaderBinding = @import("../shader.zig").ShaderBinding;
+const ShaderBindingType = @import("../shader.zig").ShaderBindingType;
+const ShaderStage = @import("../shader.zig").ShaderStage;
 const std = @import("std");
 const types = @import("../type.zig");
+const MAX_FRAMES_IN_FLIGHT = @import("./swapchain.zig").MAX_FRAMES_IN_FLIGHT;
 
 const shaderc = @import("shaderc");
 
@@ -120,7 +124,7 @@ pub const VulkanPipeline = struct {
     pipeline: vk.Pipeline,
     context: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout) ShaderError!VulkanPipeline {
+    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout, bindings: *const VulkanShaderBindingSet) ShaderError!VulkanPipeline {
         const vertex_shader_stage_info = vk.PipelineShaderStageCreateInfo{
             .stage = .{ .vertex_bit = true, .fragment_bit = false },
             .module = vertex_shader.module,
@@ -182,7 +186,7 @@ pub const VulkanPipeline = struct {
             .rasterizer_discard_enable = vk.FALSE,
             .polygon_mode = .fill,
             .cull_mode = .{ .back_bit = false },
-            .front_face = .clockwise,
+            .front_face = .counter_clockwise,
             .depth_bias_enable = vk.FALSE,
             .depth_bias_constant_factor = 0.0,
             .depth_bias_clamp = 0.0,
@@ -224,8 +228,8 @@ pub const VulkanPipeline = struct {
         };
 
         const pipeline_layout = vk.PipelineLayoutCreateInfo{
-            .set_layout_count = 0,
-            .p_set_layouts = null,
+            .set_layout_count = 1,
+            .p_set_layouts = @ptrCast(&bindings.layout),
             .push_constant_range_count = 0,
             .p_push_constant_ranges = null,
         };
@@ -277,5 +281,101 @@ pub const VulkanPipeline = struct {
         self.context.logical_device.device.deviceWaitIdle() catch {};
         self.context.logical_device.device.destroyPipeline(self.pipeline, null);
         self.context.logical_device.device.destroyPipelineLayout(self.layout, null);
+    }
+};
+
+fn binding_type_to_vulkan_type(t: ShaderBindingType) vk.DescriptorType {
+    return switch(t) {
+        .UNIFORM_BUFFER => vk.DescriptorType.uniform_buffer,  
+    };
+}
+
+fn stage_to_vulkan_type(t: ShaderStage) vk.ShaderStageFlags {
+    return switch(t) {
+        .VERTEX_SHADER => vk.ShaderStageFlags{ .vertex_bit = true }, 
+        .FRAGMENT_SHADER => vk.ShaderStageFlags{ .fragment_bit = true},
+    };
+}
+
+pub const VulkanShaderBindingSet = struct {
+    bindings: []const ShaderBinding,
+    layout: vk.DescriptorSetLayout,
+    descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet,
+
+    pub fn init(ctx: *const context.VulkanContext, bindings: []const ShaderBinding) VulkanShaderBindingSet {
+        const vk_bindings = ctx.allocator.alloc(vk.DescriptorSetLayoutBinding, bindings.len) catch unreachable;
+
+        for(bindings, 0..) |binding, i| {
+            vk_bindings[i] = vk.DescriptorSetLayoutBinding{
+                .binding = binding.point,
+                .descriptor_count = 1,
+                .descriptor_type = binding_type_to_vulkan_type(binding.element),
+                .stage_flags = stage_to_vulkan_type(binding.stage),
+                .p_immutable_samplers = null,
+            };
+        }
+
+        const create_info = vk.DescriptorSetLayoutCreateInfo{
+            .binding_count = @intCast(vk_bindings.len),
+            .p_bindings = vk_bindings.ptr,
+        };
+
+        const layout = ctx.logical_device.device.createDescriptorSetLayout(&create_info, null) catch {
+            log.fatal("Failed to create descriptor set layout", .{});
+            unreachable;
+        };
+
+        var layouts: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSetLayout = undefined;
+        
+        for(0..MAX_FRAMES_IN_FLIGHT) |i| {
+            layouts[i] = layout;
+        }
+
+        const allocInfo = vk.DescriptorSetAllocateInfo{
+            .descriptor_pool = ctx.descriptor_pool,
+            .descriptor_set_count = MAX_FRAMES_IN_FLIGHT,
+            .p_set_layouts = @ptrCast(&layouts[0]),
+        };
+
+        var descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet = undefined;
+
+        ctx.logical_device.device.allocateDescriptorSets(&allocInfo, @ptrCast(&descriptor_sets[0])) catch {
+            log.fatal("Failed to allocate descriptor sets for UBO", .{});
+            unreachable;
+        };
+
+        for(bindings) |binding| {
+            for(0..MAX_FRAMES_IN_FLIGHT) |i| {
+                switch(binding.element) {
+                    .UNIFORM_BUFFER => {
+                        const buffer_info = vk.DescriptorBufferInfo{
+                            .buffer = binding.element.UNIFORM_BUFFER.VULKAN.vk_buffer[0].asVulkanBuffer(),
+                            .offset = 0,
+                            .range = binding.element.UNIFORM_BUFFER.VULKAN.size,
+                        };
+                        
+                        const descriptor_write = vk.WriteDescriptorSet{
+                            .dst_set = descriptor_sets[i],
+                            .dst_binding = binding.point,
+                            .dst_array_element = 0,
+                            .descriptor_type = .uniform_buffer,
+                            .descriptor_count = 1,
+                            .p_buffer_info = @ptrCast(&buffer_info),
+                            .p_image_info = undefined,
+                            .p_texel_buffer_view = undefined,
+                        };
+
+                        ctx.logical_device.device.updateDescriptorSets(1, @ptrCast(&descriptor_write), 0, null);
+                    }
+                }
+            }
+        }
+        
+        
+        return VulkanShaderBindingSet{
+            .bindings = bindings,
+            .layout = layout,
+            .descriptor_sets = descriptor_sets,
+        };
     }
 };

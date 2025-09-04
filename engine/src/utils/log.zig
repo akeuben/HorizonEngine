@@ -71,7 +71,8 @@ pub fn get_level() LogLevel {
     return log_level;
 }
 
-pub inline fn not_implemented() void {
-    const src = comptime @src();
-    warn("The {s} api call has not been implemented for this API", .{src.fn_name});
+pub fn not_implemented(method: []const u8, api: anytype) void {
+    if(std.mem.eql(u8, @tagName(api), "NONE")) return;
+
+    warn("Tried to call {s}, but no implementation for the api {s} exists.", .{method, @tagName(api)});   
 }

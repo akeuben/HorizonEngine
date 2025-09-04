@@ -44,6 +44,7 @@ pub const VulkanContext = struct {
 
     swapchain: swapchain.Swapchain,
     command_pool: vk.CommandPool,
+    descriptor_pool: vk.DescriptorPool,
 
     target: VulkanRenderTarget,
 
@@ -129,6 +130,22 @@ pub const VulkanContext = struct {
         };
         log.debug("Created command pool", .{});
 
+        const pool_size = vk.DescriptorPoolSize{
+            .type = .uniform_buffer,
+            .descriptor_count = 1000 * swapchain.MAX_FRAMES_IN_FLIGHT,
+        };
+
+        const descriptor_pool_create_info = vk.DescriptorPoolCreateInfo{
+            .pool_size_count = 1,
+            .p_pool_sizes = @ptrCast(&pool_size),
+            .max_sets = 1000,
+        };
+
+        self.descriptor_pool = self.logical_device.device.createDescriptorPool(&descriptor_pool_create_info, null) catch {
+            log.fatal("Failed to create descriptor pool.", .{});
+            unreachable;
+        };
+
         self.swapchain = swapchain.Swapchain.init(self, window, self.allocator) catch {
             log.fatal("Failed to create swapchain", .{});
             std.process.exit(1);
@@ -153,6 +170,7 @@ pub const VulkanContext = struct {
     pub fn deinit(self: *VulkanContext) void {
         self.vk_allocator.deinit();
         self.logical_device.device.deviceWaitIdle() catch {};
+        self.logical_device.device.destroyDescriptorPool(self.descriptor_pool, null);
         self.logical_device.device.destroyCommandPool(self.command_pool, null);
         self.swapchain.deinit();
         self.logical_device.deinit();

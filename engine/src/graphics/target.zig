@@ -1,7 +1,6 @@
 const std = @import("std");
 const opengl = @import("opengl/target.zig");
 const vulkan = @import("vulkan/target.zig");
-const none = @import("none/target.zig");
 const context = @import("context.zig");
 const VertexBuffer = @import("buffer.zig").VertexBuffer;
 const Pipeline = @import("shader.zig").Pipeline;
@@ -13,7 +12,7 @@ const log = @import("../utils/log.zig");
 pub const RenderTarget = union(context.API) {
     OPEN_GL: opengl.OpenGLRenderTarget,
     VULKAN: vulkan.VulkanRenderTarget,
-    NONE: none.NoneRenderTarget,
+    NONE: void,
 
     /// Create a new `RenderTarget`.
     ///
@@ -29,7 +28,7 @@ pub const RenderTarget = union(context.API) {
                 .VULKAN = vulkan.VulkanRenderTarget.init(allocator),
             },
             .NONE => RenderTarget{
-                .NONE = none.NoneRenderTarget.init(allocator),
+                .NONE = {},
             },
         };
     }
@@ -39,7 +38,9 @@ pub const RenderTarget = union(context.API) {
     /// **Parameter** `self`: The render target to start the pass for.
     pub fn start(self: *const RenderTarget) ActiveRenderTarget {
         switch (self.*) {
-            inline else => |case| case.start(),
+            .OPEN_GL => self.OPEN_GL.start(),
+            .VULKAN => self.VULKAN.start(),
+            inline else => log.not_implemented("RenderTarget::start", self.*),
         }
 
         return .{
@@ -50,7 +51,9 @@ pub const RenderTarget = union(context.API) {
     /// Destroy the render target.
     pub fn deinit(self: RenderTarget) void {
         switch (self) {
-            inline else => |case| case.deinit(),
+            .OPEN_GL => self.OPEN_GL.deinit(),
+            .VULKAN => self.VULKAN.deinit(),
+            inline else => log.not_implemented("RenderTarget::deinit", self),
         }
     }
 };
@@ -65,7 +68,9 @@ pub const ActiveRenderTarget = struct {
 
     pub fn end(self: ActiveRenderTarget) void {
         switch(self.target.*) {
-            inline else => |case| case.end(),
+            .OPEN_GL => self.target.OPEN_GL.end(),
+            .VULKAN => self.target.VULKAN.end(),
+            inline else => log.not_implemented("ActiveRenderRenderTarget::end", self.target.*),
         }
     }
 };

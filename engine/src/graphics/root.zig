@@ -1,10 +1,13 @@
 pub const Context = @import("context.zig").Context;
 pub const VertexBuffer = @import("buffer.zig").VertexBuffer;
 pub const IndexBuffer = @import("buffer.zig").IndexBuffer;
+pub const UniformBuffer = @import("buffer.zig").UniformBuffer;
 pub const types = @import("type.zig");
 pub const VertexShader = @import("shader.zig").VertexShader;
 pub const FragmentShader = @import("shader.zig").FragmentShader;
 pub const Pipeline = @import("shader.zig").Pipeline;
+pub const ShaderBindingSet = @import("shader.zig").ShaderBindingSet;
+pub const ShaderBindingType = @import("shader.zig").ShaderBindingType;
 pub const RenderObject = @import("object.zig").RenderObject;
 pub const VertexRenderObject = @import("object.zig").VertexRenderObject;
 pub const IndexRenderObject = @import("object.zig").IndexRenderObject;

@@ -3,6 +3,8 @@ const gl = @import("gl");
 const types = @import("../type.zig");
 const log = @import("../../utils/log.zig");
 const context = @import("./context.zig");
+const shader = @import("../shader.zig");
+const zm = @import("zm"); 
 
 pub const OpenGLVertexBuffer = struct {
     gl_buffer: u32,
@@ -72,6 +74,46 @@ pub const OpenGLIndexBuffer = struct {
     }
 
     pub fn deinit(self: *OpenGLIndexBuffer) void {
+        gl.deleteBuffers(1, &self.gl_buffer);
+    }
+};
+
+pub const OpenGLUniformBuffer = struct {
+    ctx: *const context.OpenGLContext,
+    gl_buffer: u32,
+    layout: ?types.BufferLayout,
+
+    pub fn init(ctx: *const context.OpenGLContext, comptime T: anytype, data: T) OpenGLUniformBuffer {
+        var gl_buffer: u32 = 0;
+        gl.genBuffers(1, &gl_buffer);
+        log.debug("Generated buffer {}", .{ gl_buffer });
+
+        var buffer = OpenGLUniformBuffer{
+            .ctx = ctx,
+            .gl_buffer = gl_buffer,
+            .layout = null,
+        };
+        buffer.set_data(T, data);
+        return buffer;
+    }
+
+    pub inline fn set_data(self: *OpenGLUniformBuffer, comptime T: anytype, data: T) void {
+        const layout = types.generate_layout(T, &.{data}, self.ctx.allocator) catch {
+            log.fatal("Uniform Buffer contains an invalid type", .{});
+            unreachable;
+        };
+
+        self.layout = layout;
+        gl.bindBuffer(gl.UNIFORM_BUFFER, self.gl_buffer);
+        gl.bufferData(gl.UNIFORM_BUFFER, layout.size, &data, gl.STATIC_DRAW);
+        log.debug("Buffer data loaded into buffer {} ", .{self.gl_buffer});
+    }
+
+    pub fn get_layout(self: OpenGLUniformBuffer) types.BufferLayout {
+        return self.layout.?;
+    }
+
+    pub fn deinit(self: *OpenGLUniformBuffer) void {
         gl.deleteBuffers(1, &self.gl_buffer);
     }
 };

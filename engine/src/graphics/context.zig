@@ -2,11 +2,11 @@
 const std = @import("std");
 const opengl = @import("opengl/context.zig");
 const vulkan = @import("vulkan/context.zig");
-const none = @import("none/context.zig");
 const Window = @import("../platform/window.zig").Window;
 const Pipeline = @import("shader.zig").Pipeline;
 const VertexBuffer = @import("buffer.zig").VertexBuffer;
 const RenderTarget = @import("target.zig").RenderTarget;
+const log = @import("../utils/log.zig");
 
 /// A Graphics API
 pub const API = enum { OPEN_GL, VULKAN, NONE };
@@ -17,7 +17,7 @@ pub const API = enum { OPEN_GL, VULKAN, NONE };
 pub const Context = union(API) {
     OPEN_GL: *opengl.OpenGLContext,
     VULKAN: *vulkan.VulkanContext,
-    NONE: *none.NoneContext,
+    NONE: void,
 
     /// Initializes a new OpenGL context
     ///
@@ -40,9 +40,9 @@ pub const Context = union(API) {
     /// Initializes a new headless context
     ///
     /// **Parameter** `allocator`: The allocator to use for the duration of this context's lifetime.
-    pub fn init_none(allocator: std.mem.Allocator, options: ContextCreationOptions) Context {
+    pub fn init_none(_: std.mem.Allocator, _: ContextCreationOptions) Context {
         return Context{
-            .NONE = none.NoneContext.init(allocator, options),
+            .NONE = {},
         };
     }
 
@@ -53,7 +53,9 @@ pub const Context = union(API) {
     /// **Parameter** `self`: The context to destroy.
     pub fn deinit(self: *Context) void {
         switch (self.*) {
-            inline else => |case| case.deinit(),
+            .OPEN_GL => self.OPEN_GL.deinit(),
+            .VULKAN => self.VULKAN.deinit(),
+            inline else => log.not_implemented("Context::deinit", self.*),
         }
     }
 
@@ -66,7 +68,7 @@ pub const Context = union(API) {
         switch (self.*) {
             .OPEN_GL => opengl.OpenGLContext.load(self.OPEN_GL, window),
             .VULKAN => vulkan.VulkanContext.load(self.VULKAN, window),
-            .NONE => none.NoneContext.load(self.NONE, window),
+            inline else => log.not_implemented("Context::load", self.*),
         }
     }
 
@@ -84,7 +86,7 @@ pub const Context = union(API) {
                 .VULKAN = self.VULKAN.get_target(),
             },
             .NONE => RenderTarget{
-                .NONE = self.NONE.get_target(),
+                .NONE = {},
             },
         };
     }
@@ -97,7 +99,7 @@ pub const Context = union(API) {
         switch (self.*) {
             .OPEN_GL => opengl.OpenGLContext.notify_resized(self.OPEN_GL, new_size),
             .VULKAN => vulkan.VulkanContext.notify_resized(self.VULKAN),
-            .NONE => none.NoneContext.notify_resized(self.NONE),
+            .NONE => log.not_implemented("Context::notify_resized", self.*),
         }
     }
 };
