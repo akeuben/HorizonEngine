@@ -8,6 +8,7 @@ const ShaderBindingLayoutElement = @import("../shader.zig").ShaderBindingLayoutE
 const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
 const ShaderBindingType = @import("../shader.zig").ShaderBindingType;
 const ShaderStage = @import("../shader.zig").ShaderStage;
+const ShaderBindingElement = @import("../shader.zig").ShaderBindingElement;
 const std = @import("std");
 const types = @import("../type.zig");
 const MAX_FRAMES_IN_FLIGHT = @import("./swapchain.zig").MAX_FRAMES_IN_FLIGHT;
@@ -115,7 +116,6 @@ fn shader_type_to_vulkan_type(shader_type: types.ShaderLayoutElementType) vk.For
         .Vec4d => vk.Format.r64g64b64a64_sfloat,
         else => {
             log.fatal("Invalid vertex buffer element type", .{});
-            unreachable;
         },
     };
 }
@@ -288,6 +288,7 @@ pub const VulkanPipeline = struct {
 fn binding_type_to_vulkan_type(t: ShaderBindingType) vk.DescriptorType {
     return switch(t) {
         .UNIFORM_BUFFER => vk.DescriptorType.uniform_buffer,  
+        .IMAGE_SAMPLER => vk.DescriptorType.combined_image_sampler,
     };
 }
 
@@ -295,6 +296,17 @@ fn stage_to_vulkan_type(t: ShaderStage) vk.ShaderStageFlags {
     return switch(t) {
         .VERTEX_SHADER => vk.ShaderStageFlags{ .vertex_bit = true }, 
         .FRAGMENT_SHADER => vk.ShaderStageFlags{ .fragment_bit = true},
+    };
+}
+
+fn create_element(binding: *const ShaderBindingLayoutElement, element: *anyopaque) ShaderBindingElement {
+    return switch(binding.binding_type) {
+        .UNIFORM_BUFFER => ShaderBindingElement{
+            .UNIFORM_BUFFER = @ptrCast(@alignCast(element)),
+        },
+        .IMAGE_SAMPLER => ShaderBindingElement{
+            .IMAGE_SAMPLER = @ptrCast(@alignCast(element)),
+        },
     };
 }
 
@@ -323,7 +335,6 @@ pub const VulkanShaderBindingLayout = struct {
 
         const layout = ctx.logical_device.device.createDescriptorSetLayout(&create_info, null) catch {
             log.fatal("Failed to create descriptor set layout", .{});
-            unreachable;
         };
 
         return VulkanShaderBindingLayout{
@@ -359,35 +370,68 @@ pub const VulkanShaderBindingSet = struct {
 
         ctx.logical_device.device.allocateDescriptorSets(&allocInfo, @ptrCast(&descriptor_sets[0])) catch {
             log.fatal("Failed to allocate descriptor sets for UBO", .{});
-            unreachable;
         };
 
-        for(bindings) |binding| {
-            for(0..MAX_FRAMES_IN_FLIGHT) |i| {
-                switch(binding.element) {
-                    .UNIFORM_BUFFER => {
-                        const buffer_info = vk.DescriptorBufferInfo{
-                            .buffer = binding.element.UNIFORM_BUFFER.VULKAN.vk_buffer[0].asVulkanBuffer(),
-                            .offset = 0,
-                            .range = binding.element.UNIFORM_BUFFER.VULKAN.size,
-                        };
-                        
-                        const descriptor_write = vk.WriteDescriptorSet{
-                            .dst_set = descriptor_sets[i],
-                            .dst_binding = binding.point,
-                            .dst_array_element = 0,
-                            .descriptor_type = .uniform_buffer,
-                            .descriptor_count = 1,
-                            .p_buffer_info = @ptrCast(&buffer_info),
-                            .p_image_info = undefined,
-                            .p_texel_buffer_view = undefined,
-                        };
+        const writes = ctx.allocator.alloc(vk.WriteDescriptorSet, bindings.len * MAX_FRAMES_IN_FLIGHT) catch unreachable;
+        var count: u32 = 0;
 
-                        ctx.logical_device.device.updateDescriptorSets(1, @ptrCast(&descriptor_write), 0, null);
+        for(bindings) |binding| {
+            for(layout.bindings) |lbinding| {
+                if(binding.point != lbinding.point) continue;
+                for(0..MAX_FRAMES_IN_FLIGHT) |i| {
+                    const element = create_element(&lbinding, binding.element);
+                    switch(element) {
+                        .UNIFORM_BUFFER => {
+                            const buffer_info = vk.DescriptorBufferInfo{
+                                .buffer = element.UNIFORM_BUFFER.VULKAN.vk_buffer[0].asVulkanBuffer(),
+                                .offset = 0,
+                                .range = element.UNIFORM_BUFFER.VULKAN.size,
+                            };
+                            
+                            const descriptor_write = vk.WriteDescriptorSet{
+                                .dst_set = descriptor_sets[i],
+                                .dst_binding = binding.point,
+                                .dst_array_element = 0,
+                                .descriptor_type = .uniform_buffer,
+                                .descriptor_count = 1,
+                                .p_buffer_info = @ptrCast(&buffer_info),
+                                .p_image_info = undefined,
+                                .p_texel_buffer_view = undefined,
+                            };
+
+                            writes[count] = descriptor_write;
+                            count += 1;
+                        },
+                        .IMAGE_SAMPLER => {
+                            const image_info = vk.DescriptorImageInfo{
+                                .image_layout = .shader_read_only_optimal,
+                                .image_view = element.IMAGE_SAMPLER.VULKAN.view,
+                                .sampler = element.IMAGE_SAMPLER.VULKAN.sampler,
+                            };
+
+                            const descriptor_write = vk.WriteDescriptorSet{
+                                .dst_set = descriptor_sets[i],
+                                .dst_binding = binding.point,
+                                .dst_array_element = 0,
+                                .descriptor_type = .combined_image_sampler,
+                                .descriptor_count = 1,
+                                .p_buffer_info = undefined,
+                                .p_image_info = @ptrCast(&image_info),
+                                .p_texel_buffer_view = undefined,
+                            };
+
+                            log.debug("binding at {}", .{binding.point});
+
+                            writes[count] = descriptor_write;
+                            count += 1;
+                            log.debug("Write image sampler", .{});
+                        },
                     }
                 }
             }
         }
+        ctx.logical_device.device.updateDescriptorSets(count, @ptrCast(writes.ptr), 0, null);
+        log.debug("Wrote {} descriptor sets", .{count});
         
         
         return VulkanShaderBindingSet{

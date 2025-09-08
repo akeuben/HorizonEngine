@@ -6,6 +6,7 @@ const log = @import("../utils/log.zig");
 const BufferLayout = @import("type.zig").BufferLayout;
 const RenderTarget = @import("target.zig").RenderTarget;
 const UniformBuffer = @import("buffer.zig").UniformBuffer;
+const TextureSampler = @import("texture.zig").TextureSampler;
 
 /// An error that occurs while compiling or linking a shader pipeline.
 pub const ShaderError = error{
@@ -18,7 +19,10 @@ pub const ShaderError = error{
 // TODO: Replace with an asset manager
 fn read_shader_file(comptime path: []const u8) ![]const u8 {
     var file = std.fs.cwd().openFile("assets/" ++ path, .{}) catch {
-        log.err("Failed to open shader: {s}", .{try std.fs.cwd().realpathAlloc(std.heap.page_allocator, ".")});
+        const p = try std.fs.cwd().realpathAlloc(std.heap.page_allocator, ".");
+        defer std.heap.page_allocator.free(p);
+        
+        log.err("Failed to open shader: {s}", .{p});
         return undefined;
     };
     defer file.close();
@@ -161,6 +165,7 @@ pub const Pipeline = union(context.API) {
 
 pub const ShaderBindingType = enum {
     UNIFORM_BUFFER,
+    IMAGE_SAMPLER,
 };
 
 pub const ShaderStage = enum {
@@ -170,6 +175,7 @@ pub const ShaderStage = enum {
 
 pub const ShaderBindingElement = union(ShaderBindingType) {
     UNIFORM_BUFFER: *UniformBuffer,
+    IMAGE_SAMPLER: *TextureSampler,
 };
 
 pub const ShaderBindingLayoutElement = struct {
@@ -184,7 +190,7 @@ pub const BoundShaderBinding = struct {
 };
 
 pub const CreateInfoShaderBindingElement = struct {
-    element: ShaderBindingElement, 
+    element: *anyopaque, 
     point: u32
 };
 

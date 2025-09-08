@@ -19,6 +19,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
         .gl_version = GL_VERSION,
         .gl_extensions = GL_EXTENSIONS,
     });
+    const stb = vendor.stb.build_stb(b, target, optimize);
 
     // Library
     var lib = b.addStaticLibrary(.{
@@ -33,6 +34,8 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     lib.linkLibrary(glfw);
     lib.addIncludePath(vendor.vma.get_include_path(b));
     lib.linkLibrary(vma);
+    lib.addIncludePath(vendor.stb.get_include_path(b));
+    lib.linkLibrary(stb);
 
     // Link Zig Libraries
     lib.root_module.addImport("zm", zm.module("zm"));

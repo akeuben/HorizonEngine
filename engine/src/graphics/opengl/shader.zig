@@ -9,6 +9,7 @@ const Context = @import("context.zig").OpenGLContext;
 const BoundShaderBinding = @import("../shader.zig").BoundShaderBinding;
 const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
 const ShaderBindingLayout = @import("../shader.zig").ShaderBindingLayout;
+const ShaderBindingElement = @import("../shader.zig").ShaderBindingElement;
 
 const shaderc = @import("shaderc");
 
@@ -136,6 +137,17 @@ pub const OpenGLPipeline = struct {
     }
 };
 
+fn create_element(binding: *const ShaderBindingLayoutElement, element: *anyopaque) ShaderBindingElement {
+    return switch(binding.binding_type) {
+        .UNIFORM_BUFFER => ShaderBindingElement{
+            .UNIFORM_BUFFER = @ptrCast(@alignCast(element)),
+        },
+        .IMAGE_SAMPLER => ShaderBindingElement{
+            .IMAGE_SAMPLER = @ptrCast(@alignCast(element)),
+        }
+    };
+}
+
 pub const OpenGLShaderBindingSet = struct {
     ctx: *const Context,
     bindings: []const BoundShaderBinding,
@@ -149,13 +161,13 @@ pub const OpenGLShaderBindingSet = struct {
             for(layout.bindings) |binding| {
                 if(binding.point == element.point) {
                     b = BoundShaderBinding{
-                        .element = element.element,
+                        .element = create_element(&binding, element.element),
                         .layout = binding,
                     };
                 }
             }
             if(b == null) {
-                log.warn("Tried to bind a {s} that does not have a binding point in the layout", .{@tagName(element.element)});
+                log.warn("Tried to bind an element that does not have a binding point in the layout, or is of the incorrect type at point {}", .{element.point});
                 continue;
             }
             bindings[i] = b.?;

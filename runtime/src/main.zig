@@ -2,67 +2,64 @@ const std = @import("std");
 
 const engine = @import("engine");
 
+const stb = engine.data.stb;
+
 const zm = engine.zm;
 const graphics = engine.graphics;
 const log = engine.log;
 const Window = engine.platform.Window;
 
-const triangle_vertices: []const Vertex = &[_]Vertex{
-    .{ .position = .{ 0.0,  0.5, -1 }, .color = .{ 1.0, 0.0, 0.0 } }, // top, red
-    .{ .position = .{-0.5, -0.5, -1 }, .color = .{ 0.0, 1.0, 0.0 } }, // bottom left, green
-    .{ .position = .{ 0.5, -0.5, -1 }, .color = .{ 0.0, 0.0, 1.0 } }, // bottom right, blue
-};
-
 const cube_vertices: []const Vertex = &[_]Vertex{
     // +Z face (red)
-    .{ .position = .{  0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
-    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
-    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
-    .{ .position = .{  0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 } },
+    .{ .position = .{  0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 }, .uv = .{0.0, 1.0} },
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 }, .uv = .{0.0, 0.0} },
+    .{ .position = .{  0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 }, .uv = .{1.0, 0.0} },
 
     // +X face (green)
-    .{ .position = .{ 0.5,  0.5,  0.5 }, .color = .{ 0.0, 1.0, 0.0 } },
-    .{ .position = .{ 0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 0.0 } },
-    .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } },
-    .{ .position = .{ 0.5,  0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 } },
+    .{ .position = .{ 0.5,  0.5,  0.5 }, .color = .{ 0.0, 1.0, 0.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ 0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 0.0 }, .uv = .{1.0, 0.0} },
+    .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 }, .uv = .{0.0, 0.0} },
+    .{ .position = .{ 0.5,  0.5, -0.5 }, .color = .{ 0.0, 1.0, 0.0 }, .uv = .{0.0, 1.0} },
 
     // +Y face (blue)
-    .{ .position = .{  0.5, 0.5,  0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
-    .{ .position = .{ 0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
-    .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
-    .{ .position = .{ -0.5, 0.5,  0.5 }, .color = .{ 0.0, 0.0, 1.0 } },
+    .{ .position = .{  0.5, 0.5,  0.5 }, .color = .{ 0.0, 0.0, 1.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ 0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 }, .uv = .{1.0, 0.0} },
+    .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 0.0, 0.0, 1.0 }, .uv = .{0.0, 0.0} },
+    .{ .position = .{ -0.5, 0.5,  0.5 }, .color = .{ 0.0, 0.0, 1.0 }, .uv = .{0.0, 1.0} },
 
     // -Z face (yellow)
-    .{ .position = .{  0.5, -0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 } },
-    .{ .position = .{ 0.5,  0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 } },
-    .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 } },
-    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 } },
+    .{ .position = .{  0.5, -0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 }, .uv = .{1.0, 0.0} },
+    .{ .position = .{ 0.5,  0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ -0.5, 0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 }, .uv = .{0.0, 1.0} },
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 1.0, 1.0, 0.0 }, .uv = .{0.0, 0.0} },
 
     // -X face (magenta)
-    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 1.0 } },
-    .{ .position = .{ -0.5,  0.5, -0.5 }, .color = .{ 1.0, 0.0, 1.0 } },
-    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 1.0, 0.0, 1.0 } },
-    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 1.0 } },
+    .{ .position = .{ -0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 1.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ -0.5,  0.5, -0.5 }, .color = .{ 1.0, 0.0, 1.0 }, .uv = .{0.0, 1.0} },
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 1.0, 0.0, 1.0 }, .uv = .{0.0, 0.0} },
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 1.0, 0.0, 1.0 }, .uv = .{1.0, 0.0} },
 
     // -Y face (cyan)
-    .{ .position = .{ 0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 1.0 } },
-    .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 1.0 } },
+    .{ .position = .{ 0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 1.0 }, .uv = .{1.0, 1.0} },
+    .{ .position = .{ -0.5, -0.5,  0.5 }, .color = .{ 0.0, 1.0, 1.0 }, .uv = .{0.0, 1.0} },
+    .{ .position = .{ -0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 1.0 }, .uv = .{0.0, 0.0} },
+    .{ .position = .{ 0.5, -0.5, -0.5 }, .color = .{ 0.0, 1.0, 1.0 }, .uv = .{1.0, 0.0} },
 };
 
 const cube_indices: []const u32 = &[_]u32{
-    // +Z face
     0, 1, 2, 2, 3, 0,
-    // +X face
     4, 5, 6, 6, 7, 4,
-    // +Y face
     8, 9, 10, 10, 11, 8,
+    14, 13, 12, 12, 15, 14,
+    16, 17, 18, 18, 19, 16,
+    20, 21, 22, 22, 23, 20,
 };
 
 const Vertex = packed struct {
     position: zm.Vec3f,
     color: zm.Vec3f,
+    uv: zm.Vec2f,
 };
 
 const UniformBufferObject = struct {
@@ -96,11 +93,19 @@ pub fn main() !void {
 
     const target = context.get_target();
 
-    var triangle_buffer = try graphics.VertexBuffer.init(&context, Vertex, triangle_vertices);
-    defer triangle_buffer.deinit();
-
     var cube_vbuffer = try graphics.VertexBuffer.init(&context, Vertex, cube_vertices);
     defer cube_vbuffer.deinit();
+
+    const image = try stb.StbImage.load_png("assets/texture.jpg");
+    defer image.deinit();
+
+    const texture = graphics.Texture.init(&context, &image);
+    defer texture.deinit();
+
+    var sampler = texture.sampler(.{
+        .filter = .LINEAR
+    });
+    defer sampler.deinit();
 
     var cube_ibuffer = graphics.IndexBuffer.init(&context, cube_indices);
     defer cube_ibuffer.deinit();
@@ -110,10 +115,12 @@ pub fn main() !void {
     const fs = try graphics.FragmentShader.init(&context, "basic");
     defer fs.deinit();
 
+    const a45 = std.math.degreesToRadians(45);
+    
     var mats: UniformBufferObject = .{
         .model = zm.Mat4f.identity().transpose(),
         .view = zm.Mat4f.lookAt(.{10, 10, 10}, .{0, 0, 0}, .{0, 1, 0}).transpose(),
-        .proj = zm.Mat4f.perspective(std.math.degreesToRadians(45), 16.0/9.0, 0.1, 100.0).transpose()
+        .proj = zm.Mat4f.perspective(a45, 16.0/9.0, 0.1, 100.0).transpose()
     };
 
     var uniform = graphics.UniformBuffer.init(&context, UniformBufferObject, mats);
@@ -121,15 +128,17 @@ pub fn main() !void {
 
     const bindingLayout = graphics.ShaderBindingLayout.init(&context, &.{
         .{.point = 0, .binding_type = .UNIFORM_BUFFER, .stage = .VERTEX_SHADER},
+        .{.point = 1, .binding_type = .IMAGE_SAMPLER, .stage = .FRAGMENT_SHADER},
     });
     defer bindingLayout.deinit();
 
     const bindings = bindingLayout.bind(&context, &.{
-        .{.element = .{.UNIFORM_BUFFER = &uniform}, .point = 0},
+        .{.element = &uniform, .point = 0},
+        .{.element = &sampler, .point = 1},
     });
     defer bindings.deinit();
 
-    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &triangle_buffer.get_layout(), &bindings);
+    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &cube_vbuffer.get_layout(), &bindings);
     defer pipeline.deinit();
 
     const cube = graphics.IndexRenderObject.init(&context, &pipeline, &cube_vbuffer, &cube_ibuffer, &bindings).object();
@@ -137,15 +146,15 @@ pub fn main() !void {
     var last_frame_time: f64 = @floatFromInt(std.time.nanoTimestamp());
 
     var rot: f32 = 0;
-    const speed = 1 * std.math.pi * 2;
+    const speed = 0.25 * std.math.pi * 2;
 
     while (!window.should_close()) {
         const current_frame_time: f64 = @floatFromInt(std.time.nanoTimestamp());
         const t: f32 = @as(f32, @floatCast(current_frame_time - last_frame_time)) / 1E9;
         rot += t * speed;
-        log.info("Time: {}", .{t});
+        //log.info("FPS: {d:.2}", .{1.0/t});
         mats.proj = zm.Mat4f.perspective(std.math.degreesToRadians(70), @as(f32, @floatFromInt(window.get_size_pixels()[0])) / @as(f32, @floatFromInt(window.get_size_pixels()[1])), 0.1, 100).transpose();
-        mats.view = zm.Mat4f.lookAt(.{10.0 * std.math.cos(rot), 10.0, 10.0 * std.math.sin(rot)}, .{0, 0, 0}, .{0, 1, 0}).transpose();
+        mats.view = zm.Mat4f.lookAt(.{4.0 * std.math.cos(rot), 0.0, 4.0 * std.math.sin(rot)}, .{0, 0, 0}, .{0, 1, 0}).transpose();
         uniform.set_data(UniformBufferObject, mats);
         window.start_frame();
 

@@ -26,9 +26,8 @@ pub const PhysicalDevice = struct {
             }
         }
 
-        if (highest_device == vk.PhysicalDevice.null_handle) {
+        if (highest_score == 0 or highest_device == vk.PhysicalDevice.null_handle) {
             log.fatal("Failed to find a suitable physical device for vulkan instance", .{});
-            std.process.exit(1);
         }
 
         return PhysicalDevice{
@@ -53,7 +52,7 @@ pub const PhysicalDevice = struct {
         };
 
         if (!queue_families.is_complete()) {
-            log.debug("Incomplete queue family for device {s}. Assigning a score of 0", .{properties.device_name});
+            log.warn("Incomplete queue family for device {s}. Assigning a score of 0", .{properties.device_name});
             return 0;
         }
 
@@ -63,8 +62,14 @@ pub const PhysicalDevice = struct {
         };
 
         if (supported_extensions.len != device_extensions.len) {
-            log.debug("Device {s} does not support required extensions. Assigning a score of 0", .{properties.device_name});
+            log.warn("Device {s} does not support required extensions. Assigning a score of 0", .{properties.device_name});
             return 0;
+        }
+
+        const physcial_features = ctx.instance.instance.getPhysicalDeviceFeatures(device);
+
+        if(physcial_features.sampler_anisotropy == vk.FALSE) {
+            log.warn("Device {s} does not support sampler anisotropy. Assigning a score of 0", .{properties.device_name});
         }
 
         const swapchain_support = swapchain.query_swapchain_support(ctx, device, ctx.surface, std.heap.page_allocator) catch {
@@ -128,7 +133,9 @@ pub const LogicalDevice = struct {
 
         const queue_create_info = try queue_create_infos.toOwnedSlice();
 
-        const physical_device_features = vk.PhysicalDeviceFeatures{};
+        const physical_device_features = vk.PhysicalDeviceFeatures{
+            .sampler_anisotropy = vk.TRUE,
+        };
 
         const supported_layers = try extension.get_supported_layers(ctx, layers);
         const supported_extensions = try extension.get_supported_device_extensions(ctx, physical_device.device, extensions);

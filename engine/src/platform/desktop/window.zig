@@ -55,6 +55,7 @@ pub const DesktopWindow = struct {
         window.context = context;
         glfw.glfwSetWindowUserPointer(window.window, window);
         _ = glfw.glfwSetFramebufferSizeCallback(window.window, resize_callback);
+        glfw.glfwSwapInterval(0);
         return window;
     }
 

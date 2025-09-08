@@ -26,7 +26,6 @@ pub const Window = union(enum) {
                 .windows => DesktopWindow.init(),
                 else => {
                     log.fatal("Attempted to initialize window system on unsupported platform {s}", .{@tagName(os)});
-                    std.process.exit(1);
                 },
             }
             initialized = true;
@@ -36,7 +35,6 @@ pub const Window = union(enum) {
             .windows => .{ .desktop = DesktopWindow.create_window(context, allocator) },
             else => {
                 log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(os)});
-                std.process.exit(1);
             },
         };
     }

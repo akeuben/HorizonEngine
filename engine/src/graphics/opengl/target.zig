@@ -23,7 +23,7 @@ pub const OpenGLRenderTarget = struct {
     }
 
     pub fn start(_: *const OpenGLRenderTarget) void {
-        gl.clearColor(0, 0, 0, 1);
+        gl.clearColor(170.0/256.0, 227.0/256.0, 184.0/256.0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 

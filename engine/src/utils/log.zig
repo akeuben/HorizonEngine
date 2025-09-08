@@ -39,23 +39,23 @@ pub inline fn print(comptime level: LogLevel, format: []const u8, args: anytype)
     stdout.print("\u{001b}[37;40m\n", .{}) catch {};
 }
 
-pub fn debug(comptime format: []const u8, args: anytype) void {
+pub inline fn debug(comptime format: []const u8, args: anytype) void {
     if (@intFromEnum(LogLevel.DEBUG) < @intFromEnum(log_level)) return;
     stdout.print("{s}", .{LogLevel.DEBUG.color()}) catch {};
     std.debug.print("{s}> ", .{LogLevel.DEBUG.as_string()});
     std.debug.print(format, args);
     std.debug.print("\u{001b}[37;40m\n", .{});
 }
-pub fn info(comptime format: []const u8, args: anytype) void {
+pub inline fn info(comptime format: []const u8, args: anytype) void {
     print(.INFO, format, args);
 }
-pub fn warn(comptime format: []const u8, args: anytype) void {
+pub inline fn warn(comptime format: []const u8, args: anytype) void {
     print(.WARNING, format, args);
 }
-pub fn err(comptime format: []const u8, args: anytype) void {
+pub inline fn err(comptime format: []const u8, args: anytype) void {
     print(.ERROR, format, args);
 }
-pub fn fatal(comptime format: []const u8, args: anytype) void {
+pub inline fn fatal(comptime format: []const u8, args: anytype) void {
     stdout.print("\n", .{}) catch {};
     print(.FATAL, format, args);
     stdout.print("\n", .{}) catch {};

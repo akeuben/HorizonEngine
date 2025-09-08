@@ -4,49 +4,8 @@ const vk = @import("vulkan");
 const log = @import("../../utils/log.zig");
 const context = @import("context.zig");
 const allocator = @import("allocator.zig");
+const memory = @import("./memory.zig");
 const MAX_FRAMES_IN_FLIGHT = @import("./swapchain.zig").MAX_FRAMES_IN_FLIGHT;
-
-fn copy_buffer(ctx: *const context.VulkanContext, src: vk.Buffer, dst: vk.Buffer, size: vk.DeviceSize) void {
-    const alloc_info = vk.CommandBufferAllocateInfo{
-        .level = .primary,
-        .command_pool = ctx.command_pool,
-        .command_buffer_count = 1,
-    };
-
-    var command_buffer: vk.CommandBuffer = undefined;
-    ctx.logical_device.device.allocateCommandBuffers(&alloc_info, @ptrCast(&command_buffer)) catch {
-        log.fatal("Failed to create command buffer for memory copy", .{});
-    };
-
-    ctx.logical_device.device.beginCommandBuffer(command_buffer, &.{
-        .flags = .{ .one_time_submit_bit = true },
-    }) catch {
-        log.fatal("Failed to start command buffer for memory transfer operation", .{});
-    };
-
-    const copy_region = vk.BufferCopy{
-        .src_offset = 0,
-        .dst_offset = 0,
-        .size = size,
-    };
-    ctx.logical_device.device.cmdCopyBuffer(command_buffer, src, dst, 1, @ptrCast(&copy_region));
-    ctx.logical_device.device.endCommandBuffer(command_buffer) catch {
-        log.fatal("Failed to record command buffer for memory transfer operation", .{});
-    };
-
-    const submit_info = vk.SubmitInfo{
-        .command_buffer_count = 1,
-        .p_command_buffers = @ptrCast(&command_buffer),
-    };
-
-    ctx.logical_device.device.queueSubmit(ctx.graphics_queue, 1, @ptrCast(&submit_info), .null_handle) catch {
-        log.fatal("Failed to submit command buffer for memory transfer operation", .{});
-    };
-
-    ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
-
-    ctx.logical_device.device.freeCommandBuffers(ctx.command_pool, 1, @ptrCast(&command_buffer));
-}
 
 pub const VulkanVertexBuffer = struct {
     layout: types.BufferLayout,
@@ -69,7 +28,6 @@ pub const VulkanVertexBuffer = struct {
         }
         self.layout = types.generate_layout(T, data, self.ctx.allocator) catch {
             log.fatal("Failed to generate layout of vertex buffer", .{});
-            unreachable;
         };
         const buffer_size: vk.DeviceSize = self.layout.size * data.len;
 
@@ -82,7 +40,7 @@ pub const VulkanVertexBuffer = struct {
 
         self.vk_buffer = self.ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_dst_bit = true, .vertex_buffer_bit = true }, .{ .device_local_bit = true });
 
-        copy_buffer(self.ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
+        memory.copy_buffer(self.ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
 
         self.ctx.logical_device.device.queueWaitIdle(self.ctx.graphics_queue) catch {};
     }
@@ -132,7 +90,7 @@ pub const VulkanIndexBuffer = struct {
 
         self.vk_buffer = ctx.vk_allocator.create_buffer(buffer_size, .{ .transfer_dst_bit = true, .index_buffer_bit = true }, .{ .device_local_bit = true });
 
-        copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
+        memory.copy_buffer(ctx, staging_buffer.asVulkanBuffer(), self.vk_buffer.?.asVulkanBuffer(), buffer_size);
 
         ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
     }
@@ -170,13 +128,13 @@ pub const VulkanUniformBuffer = struct {
             ptr.* = data;
         }
 
-        set_data(&buffer, ctx, T, data);
+        set_data(&buffer, T, data);
 
         return buffer;
     }
 
-    pub fn set_data(self: *VulkanUniformBuffer, ctx: *const context.VulkanContext, comptime T: anytype, data: T) void {
-        const ptr: *T = @alignCast(@ptrCast(self.vk_memory[ctx.swapchain.current_frame]));
+    pub fn set_data(self: *VulkanUniformBuffer, comptime T: anytype, data: T) void {
+        const ptr: *T = @alignCast(@ptrCast(self.vk_memory[self.ctx.swapchain.current_frame]));
         ptr.* = data;
     }
 

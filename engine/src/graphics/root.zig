@@ -12,3 +12,6 @@ pub const ShaderBindingType = @import("shader.zig").ShaderBindingType;
 pub const RenderObject = @import("object.zig").RenderObject;
 pub const VertexRenderObject = @import("object.zig").VertexRenderObject;
 pub const IndexRenderObject = @import("object.zig").IndexRenderObject;
+
+pub const Image = @import("texture.zig").Image;
+pub const Texture = @import("texture.zig").Texture;

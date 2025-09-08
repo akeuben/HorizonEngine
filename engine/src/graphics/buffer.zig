@@ -165,6 +165,7 @@ pub const UniformBuffer = union(context.API) {
     pub fn set_data(self: *UniformBuffer, comptime T: anytype, data: T) void {
         switch (self.*) {
             .OPEN_GL => self.OPEN_GL.set_data(T, data),
+            .VULKAN => self.VULKAN.set_data(T, data),
             inline else => log.not_implemented("VertexBuffer::set_data", self.*),
         }
     }

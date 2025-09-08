@@ -29,6 +29,14 @@ pub const AllocatedVulkanBuffer = struct {
     }
 };
 
+pub const AllocatedVulkanImage = struct {
+    image: vma.VkImage,
+    memory: vma.VmaAllocation,
+
+    pub inline fn asVulkanImage(self: AllocatedVulkanImage) vk.Image {
+        return @enumFromInt(@intFromPtr(self.image));
+    }
+};
 pub const VulkanAllocator = struct {
     allocator: vma.VmaAllocator,
 
@@ -74,11 +82,49 @@ pub const VulkanAllocator = struct {
 
         if (result != vma.VK_SUCCESS) {
             log.fatal("Failed to create vulkan buffer", .{});
-            std.process.exit(1);
         }
 
         return AllocatedVulkanBuffer{
             .buffer = buffer,
+            .memory = memory,
+        };
+    }
+
+    pub fn create_image(self: *const VulkanAllocator, extent: vk.Extent3D, format: vk.Format, tiling: vk.ImageTiling, usage: vk.ImageUsageFlags, properties: vk.MemoryPropertyFlags) AllocatedVulkanImage {
+        const image_create_info = vma.VkImageCreateInfo{
+            .sType = vma.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .imageType = vma.VK_IMAGE_TYPE_2D,
+            .extent = .{
+                .width = extent.width,
+                .height = extent.height,
+                .depth = extent.depth,
+            },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .format = @intCast(@intFromEnum(format)),
+            .tiling = @intCast(@intFromEnum(tiling)),
+            .initialLayout = vma.VK_IMAGE_LAYOUT_UNDEFINED,
+            .usage = usage.toInt(),
+            .sharingMode = vma.VK_SHARING_MODE_EXCLUSIVE,
+            .samples = vma.VK_SAMPLE_COUNT_1_BIT,
+        };
+
+        const alloc_info = vma.VmaAllocationCreateInfo{
+            .usage = vma.VMA_MEMORY_USAGE_AUTO,
+            .flags = vk_properties_to_vma_flags(properties),
+        };
+
+        var image: vma.VkImage = undefined;
+        var memory: vma.VmaAllocation = undefined;
+
+        const result = vma.vmaCreateImage(self.allocator, @ptrCast(&image_create_info), @ptrCast(&alloc_info), @ptrCast(&image), @ptrCast(&memory), null);
+
+        if(result != vma.VK_SUCCESS) {
+            log.fatal("Failed to create vulkan image", .{});
+        }
+
+        return AllocatedVulkanImage{
+            .image = image,
             .memory = memory,
         };
     }
@@ -98,6 +144,10 @@ pub const VulkanAllocator = struct {
 
     pub fn destroy_buffer(self: *const VulkanAllocator, buffer: AllocatedVulkanBuffer) void {
         vma.vmaDestroyBuffer(self.allocator, buffer.buffer, buffer.memory);
+    }
+
+    pub fn destroy_image(self: *const VulkanAllocator, image: AllocatedVulkanImage) void {
+        vma.vmaDestroyImage(self.allocator, image.image, image.memory);
     }
 
     pub fn deinit(self: VulkanAllocator) void {

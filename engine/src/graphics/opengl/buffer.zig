@@ -36,7 +36,6 @@ pub const OpenGLVertexBuffer = struct {
         };
         self.layout = layout;
         gl.bufferData(gl.ARRAY_BUFFER, @intCast(data.len * self.layout.?.size), data.ptr, gl.STATIC_DRAW);
-        log.debug("Buffer data loaded into buffer {} ", .{self.gl_buffer});
     }
 
     pub fn get_layout(self: OpenGLVertexBuffer) types.BufferLayout {
@@ -70,7 +69,6 @@ pub const OpenGLIndexBuffer = struct {
         self.count = @intCast(data.len);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.gl_buffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, @intCast(data.len * @sizeOf(u32)), data.ptr, gl.STATIC_DRAW);
-        log.debug("Buffer data loaded into buffer {} ", .{self.gl_buffer});
     }
 
     pub fn deinit(self: *OpenGLIndexBuffer) void {
@@ -100,13 +98,11 @@ pub const OpenGLUniformBuffer = struct {
     pub inline fn set_data(self: *OpenGLUniformBuffer, comptime T: anytype, data: T) void {
         const layout = types.generate_layout(T, &.{data}, self.ctx.allocator) catch {
             log.fatal("Uniform Buffer contains an invalid type", .{});
-            unreachable;
         };
 
         self.layout = layout;
         gl.bindBuffer(gl.UNIFORM_BUFFER, self.gl_buffer);
         gl.bufferData(gl.UNIFORM_BUFFER, layout.size, &data, gl.STATIC_DRAW);
-        log.debug("Buffer data loaded into buffer {} ", .{self.gl_buffer});
     }
 
     pub fn get_layout(self: OpenGLUniformBuffer) types.BufferLayout {

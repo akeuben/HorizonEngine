@@ -38,11 +38,20 @@ pub const OpenGLVertexRenderObject = struct {
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
                 .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .IMAGE_SAMPLER => {
+                    gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
+                    gl.uniform1i(@intCast(binding.layout.point), @intCast(binding_to_gl_texture_index(binding.layout.point)));
+                    binding.element.IMAGE_SAMPLER.OPEN_GL.bind();
+                },
             }
         }
         gl.drawArrays(gl.TRIANGLES, 0, @intCast(self.layout.length));
     }
 };
+
+fn binding_to_gl_texture_index(binding: u32) gl.GLenum {
+    return gl.TEXTURE0 + binding;
+}
 
 pub const OpenGLIndexRenderObject = struct {
     gl_array: u32,
@@ -76,6 +85,11 @@ pub const OpenGLIndexRenderObject = struct {
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
                 .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .IMAGE_SAMPLER => {
+                    gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
+                    gl.uniform1i(@intCast(binding.layout.point), @intCast(binding_to_gl_texture_index(binding.layout.point)));
+                    binding.element.IMAGE_SAMPLER.OPEN_GL.bind();
+                },
             }
         }
         gl.drawElements(gl.TRIANGLES, @intCast(self.count), gl.UNSIGNED_INT, null);

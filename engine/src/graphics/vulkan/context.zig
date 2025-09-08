@@ -94,7 +94,6 @@ pub const VulkanContext = struct {
 
         self.instance = instance.Instance.init(self, instance_extension_slice, layer_slice, "Test App", self.allocator) catch {
             log.fatal("Failed to initialize vulkan", .{});
-            std.process.exit(1);
         };
         log.debug("Created vulkan instance", .{});
 
@@ -104,7 +103,6 @@ pub const VulkanContext = struct {
         self.physical_device = device.PhysicalDevice.init(self, device_extension_slice);
         self.logical_device = device.LogicalDevice.init(self, self.physical_device, layer_slice, device_extension_slice, self.allocator) catch {
             log.fatal("Failed to create logical vulkan device", .{});
-            std.process.exit(1);
         };
         log.debug("Created vulkan logical device", .{});
 
@@ -117,7 +115,6 @@ pub const VulkanContext = struct {
 
         const queues = queue.find_queue_families(self, self.physical_device.device) catch {
             log.fatal("Failed to find queue families", .{});
-            std.process.exit(1);
         };
 
         const command_pool_create_info = vk.CommandPoolCreateInfo{
@@ -126,29 +123,32 @@ pub const VulkanContext = struct {
         };
         self.command_pool = self.logical_device.device.createCommandPool(&command_pool_create_info, null) catch {
             log.fatal("Failed to create command pool", .{});
-            std.process.exit(1);
         };
         log.debug("Created command pool", .{});
 
-        const pool_size = vk.DescriptorPoolSize{
-            .type = .uniform_buffer,
-            .descriptor_count = 1000 * swapchain.MAX_FRAMES_IN_FLIGHT,
+        const pool_sizes = [_]vk.DescriptorPoolSize{
+            vk.DescriptorPoolSize{
+                .type = .uniform_buffer,
+                .descriptor_count = 1000 * swapchain.MAX_FRAMES_IN_FLIGHT,
+            },
+            vk.DescriptorPoolSize{
+                .type = .combined_image_sampler,
+                .descriptor_count = 1000 * swapchain.MAX_FRAMES_IN_FLIGHT,
+            },
         };
 
         const descriptor_pool_create_info = vk.DescriptorPoolCreateInfo{
-            .pool_size_count = 1,
-            .p_pool_sizes = @ptrCast(&pool_size),
+            .pool_size_count = @intCast(pool_sizes.len),
+            .p_pool_sizes = @ptrCast(&pool_sizes),
             .max_sets = 1000,
         };
 
         self.descriptor_pool = self.logical_device.device.createDescriptorPool(&descriptor_pool_create_info, null) catch {
             log.fatal("Failed to create descriptor pool.", .{});
-            unreachable;
         };
 
         self.swapchain = swapchain.Swapchain.init(self, window, self.allocator) catch {
             log.fatal("Failed to create swapchain", .{});
-            std.process.exit(1);
         };
         log.debug("Created swapchain", .{});
 
