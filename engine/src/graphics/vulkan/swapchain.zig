@@ -242,11 +242,14 @@ pub const Swapchain = struct {
         for (self.image_views) |view| {
             self.ctx.logical_device.device.destroyImageView(view, null);
         }
+        self.ctx.logical_device.device.destroyImageView(self.depth_image_view, null);
+        self.ctx.vk_allocator.destroy_image(self.depth_image);
         const old_swapchain = self.swapchain;
 
         try create_swapchain(self, size);
         self.ctx.logical_device.device.destroySwapchainKHR(old_swapchain, null);
         try create_image_views(self);
+        create_depth_image(self);
     }
 
     pub fn acquire_image(self: *Swapchain) AcquireImageError!void {
