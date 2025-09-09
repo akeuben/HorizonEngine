@@ -8,6 +8,10 @@ const oneshot_init_err = error {
     StartError,
 };
 
+inline fn has_stencil_component(format: vk.Format) bool {
+    return format == .d32_sfloat_s8_uint or format == .d24_unorm_s8_uint;
+}
+
 pub fn init_oneshot_command(ctx: *const context.VulkanContext) oneshot_init_err!vk.CommandBuffer {
     const alloc_info = vk.CommandBufferAllocateInfo{
         .level = .primary,
@@ -74,8 +78,6 @@ pub fn transition_image_layout(ctx: *const context.VulkanContext, image: *const 
     };
     defer deinit_oneshot_command(command_buffer, ctx);
 
-    _ = format;
-
     var barrier = vk.ImageMemoryBarrier{
         .old_layout = old_layout,
         .new_layout = new_layout,
@@ -83,7 +85,11 @@ pub fn transition_image_layout(ctx: *const context.VulkanContext, image: *const 
         .dst_queue_family_index = vk.QUEUE_FAMILY_IGNORED,
         .image = image.asVulkanImage(),
         .subresource_range = .{
-            .aspect_mask = .{ .color_bit = true },
+            .aspect_mask = .{ 
+                .color_bit = new_layout != .depth_stencil_attachment_optimal, 
+                .depth_bit = new_layout == .depth_stencil_attachment_optimal,
+                .stencil_bit = new_layout == .depth_stencil_attachment_optimal and has_stencil_component(format),
+            },
             .base_mip_level = 0,
             .level_count = 1,
             .base_array_layer = 0,
@@ -96,18 +102,27 @@ pub fn transition_image_layout(ctx: *const context.VulkanContext, image: *const 
     var source_stage: vk.PipelineStageFlags = undefined;
     var destination_stage: vk.PipelineStageFlags = undefined;
 
-    if(old_layout == vk.ImageLayout.undefined and new_layout == vk.ImageLayout.transfer_dst_optimal) {
+    if(old_layout == .undefined and new_layout == .transfer_dst_optimal) {
         barrier.src_access_mask = .{};
         barrier.dst_access_mask = .{ .transfer_write_bit = true };
         
         source_stage = .{ .top_of_pipe_bit = true };
         destination_stage = .{ .transfer_bit = true };
-    } else if(old_layout == vk.ImageLayout.transfer_dst_optimal and new_layout == vk.ImageLayout.shader_read_only_optimal) {
+    } else if(old_layout == .transfer_dst_optimal and new_layout == .shader_read_only_optimal) {
         barrier.src_access_mask = .{ .transfer_write_bit = true };
         barrier.dst_access_mask = .{ .shader_read_bit = true };
         
         source_stage = .{ .transfer_bit = true };
         destination_stage = .{ .fragment_shader_bit = true };
+    } else if (old_layout == .undefined and new_layout == .depth_stencil_attachment_optimal) {
+        barrier.src_access_mask = .{};
+        barrier.dst_access_mask = .{
+            .depth_stencil_attachment_read_bit = true,
+            .depth_stencil_attachment_write_bit = true,
+        };
+
+        source_stage = .{ .top_of_pipe_bit = true };
+        destination_stage = .{ .early_fragment_tests_bit = true };
     } else {
         log.err("Invalid vulkan image transition", .{});
         return;

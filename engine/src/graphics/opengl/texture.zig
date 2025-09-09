@@ -19,7 +19,7 @@ pub const OpenGLTexture = struct {
 
     pub fn set_data(self: *const OpenGLTexture, image: *const Image) void {
         gl.bindTexture(gl.TEXTURE_2D, self.gl_texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, image.pixels);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, image.pixels);
         gl.generateMipmap(gl.TEXTURE_2D);
         log.debug("Set texture data", .{});
     }
@@ -31,7 +31,7 @@ pub const OpenGLTexture = struct {
     }
 
     pub fn deinit(self: *const OpenGLTexture) void {
-        gl.deleteTextures(1, self.gl_texture);
+        gl.deleteTextures(1, @ptrCast(&self.gl_texture));
     }
 };
 

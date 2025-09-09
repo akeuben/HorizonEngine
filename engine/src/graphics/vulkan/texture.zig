@@ -9,6 +9,24 @@ const TextureSampler = @import("../texture.zig").TextureSampler;
 const SamplerOptions = @import("../texture.zig").SamplerOptions;
 const TextureFilter = @import("../texture.zig").TextureFilter;
 
+pub fn create_image_view(ctx: *const Context, image: vk.Image, format: vk.Format, aspect_flags: vk.ImageAspectFlags) !vk.ImageView {
+    const viewInfo = vk.ImageViewCreateInfo{
+        .image = image, 
+        .view_type = .@"2d",
+        .format = format,
+        .subresource_range = .{
+            .aspect_mask = aspect_flags,
+            .level_count = 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+            .base_mip_level = 0,
+        },
+        .components = .{ .a = .identity, .r = .identity, .b = .identity, .g = .identity },
+    };
+
+    return ctx.logical_device.device.createImageView(@ptrCast(&viewInfo), null);
+} 
+
 pub const VulkanTexture = struct {
     ctx: *const Context,
     vk_image: ?allocator.AllocatedVulkanImage,
@@ -76,21 +94,7 @@ pub const VulkanTextureSampler = struct {
 
     fn init(texture: *const VulkanTexture, options: SamplerOptions) VulkanTextureSampler {
         
-        const viewInfo = vk.ImageViewCreateInfo{
-            .image = texture.vk_image.?.asVulkanImage(),
-            .view_type = .@"2d",
-            .format = .r8g8b8a8_srgb,
-            .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
-                .level_count = 1,
-                .base_array_layer = 0,
-                .layer_count = 1,
-                .base_mip_level = 0,
-            },
-            .components = .{ .a = .identity, .r = .identity, .b = .identity, .g = .identity },
-        };
-
-        const view = texture.ctx.logical_device.device.createImageView(@ptrCast(&viewInfo), null) catch {
+        const view = create_image_view(texture.ctx, texture.vk_image.?.asVulkanImage(), .r8g8b8a8_srgb, .{ .color_bit = true}) catch {
             log.err("Failed to create vulkan image view", .{});
             return undefined;
         };

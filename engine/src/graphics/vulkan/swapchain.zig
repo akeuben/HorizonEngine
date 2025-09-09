@@ -7,6 +7,9 @@ const device = @import("device.zig");
 const log = @import("../../utils/log.zig");
 const RenderObject = @import("../object.zig").RenderObject;
 const RenderTarget = @import("../target.zig").RenderTarget;
+const vk_allocator = @import("allocator.zig");
+const texture = @import("texture.zig");
+const memory = @import("memory.zig");
 
 pub const MAX_FRAMES_IN_FLIGHT: comptime_int = 2;
 
@@ -74,6 +77,29 @@ fn choose_swap_extent(size: @Vector(2, i32), capabilities: *const vk.SurfaceCapa
     return extent;
 }
 
+fn find_format(ctx: *const context.VulkanContext, candidates: []const vk.Format, tiling: vk.ImageTiling, features: vk.FormatFeatureFlags) vk.Format {
+    for(candidates) |format| {
+        const props = ctx.instance.instance.getPhysicalDeviceFormatProperties(ctx.physical_device.device, format);
+
+        if(tiling == .linear and (props.linear_tiling_features.toInt() & features.toInt()) == features.toInt()) {
+            return format;
+        } 
+        if(tiling == .optimal and (props.optimal_tiling_features.toInt() & features.toInt()) == features.toInt()) {
+            return format;
+        }
+    }
+
+    log.fatal("Failed to find format for depth buffer image", .{});
+}
+
+inline fn find_depth_format(ctx: *const context.VulkanContext) vk.Format {
+    return find_format(ctx, &.{
+        vk.Format.d32_sfloat,
+        vk.Format.d32_sfloat_s8_uint,
+        vk.Format.d24_unorm_s8_uint,
+    }, .optimal, .{ .depth_stencil_attachment_bit = true });
+}
+
 pub const AcquireImageError = error{ OutOfDateSwapchain, Other };
 
 pub const Swapchain = struct {
@@ -81,6 +107,8 @@ pub const Swapchain = struct {
     swapchain: vk.SwapchainKHR,
     images: []vk.Image,
     image_views: []vk.ImageView,
+    depth_image: vk_allocator.AllocatedVulkanImage,
+    depth_image_view: vk.ImageView,
     format: vk.Format,
     extent: vk.Extent2D,
     current_image_index: ?usize,
@@ -103,6 +131,7 @@ pub const Swapchain = struct {
 
         try create_swapchain(&swapchain, window.get_size_pixels());
         try create_image_views(&swapchain);
+        create_depth_image(&swapchain);
 
         var image_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
         var render_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
@@ -129,6 +158,15 @@ pub const Swapchain = struct {
         try ctx.logical_device.device.allocateCommandBuffers(&command_buffer_info, @ptrCast(&swapchain.command_buffers));
 
         return swapchain;
+    }
+
+    fn create_depth_image(self: *Swapchain) void {
+        const format = find_depth_format(self.ctx);
+        self.depth_image = self.ctx.vk_allocator.create_image(.{ .width = self.extent.width, .height = self.extent.height, .depth = 1}, format, .optimal, .{ .depth_stencil_attachment_bit = true }, .{ .device_local_bit = true });
+        self.depth_image_view = texture.create_image_view(self.ctx, self.depth_image.asVulkanImage(), format, .{ .depth_bit = true }) catch {
+            log.fatal("Failed to create depth image view", .{});
+        };
+        memory.transition_image_layout(self.ctx, &self.depth_image, format, .undefined, .depth_stencil_attachment_optimal);
     }
 
     fn create_swapchain(self: *Swapchain, size: @Vector(2, i32)) !void {
@@ -191,25 +229,7 @@ pub const Swapchain = struct {
 
         const image_views = try self.allocator.alloc(vk.ImageView, images.len);
         for (images, 0..) |image, i| {
-            const view_create_info: vk.ImageViewCreateInfo = .{
-                .image = image,
-                .view_type = .@"2d",
-                .format = self.format,
-                .components = .{
-                    .r = .identity,
-                    .g = .identity,
-                    .b = .identity,
-                    .a = .identity,
-                },
-                .subresource_range = .{
-                    .aspect_mask = .{ .color_bit = true },
-                    .base_mip_level = 0,
-                    .level_count = 1,
-                    .base_array_layer = 0,
-                    .layer_count = 1,
-                },
-            };
-            image_views[i] = try self.ctx.logical_device.device.createImageView(&view_create_info, null);
+            image_views[i] = try texture.create_image_view(self.ctx, image, self.format, .{ .color_bit = true });
         }
 
         self.images = images;
@@ -306,6 +326,7 @@ pub const Swapchain = struct {
         };
 
         const clear_color = vk.ClearValue{ .color = .{ .float_32 = .{ 0, 0, 0, 1 } } };
+        const clear_depth = vk.ClearValue{ .depth_stencil = .{ .depth = 1, .stencil = 0 } };
 
         const color_attachment = vk.RenderingAttachmentInfo {
             .image_view = self.image_views[self.current_image_index.?],
@@ -318,11 +339,23 @@ pub const Swapchain = struct {
             .resolve_image_layout = .undefined,
         };
 
+        const depth_attachment = vk.RenderingAttachmentInfo {
+            .image_view = self.depth_image_view,
+            .image_layout = .depth_stencil_attachment_optimal,
+            .load_op = .clear,
+            .store_op = .dont_care,
+            .clear_value = clear_depth,
+            .resolve_mode = .{},
+            .resolve_image_view = .null_handle,
+            .resolve_image_layout = .undefined,
+        };
+
         const rendering_info = vk.RenderingInfo {
             .render_area = .{ .offset = .{ .x = 0, .y = 0 }, .extent = self.extent },
             .layer_count = 1,
             .color_attachment_count = 1,
             .p_color_attachments = @ptrCast(&color_attachment),
+            .p_depth_attachment = @ptrCast(&depth_attachment),
             .view_mask = 0,
         };
 
@@ -380,11 +413,13 @@ pub const Swapchain = struct {
         // Destroy the old swapchain
         recreate(self, new_size) catch {
             log.fatal("Failed to recreate swapchain", .{});
-            std.process.exit(1);
         };
     }
 
     pub fn deinit(self: *const Swapchain) void {
+        log.debug("Deinit swapchain", .{});
+        self.ctx.logical_device.device.destroyImageView(self.depth_image_view, null);
+        self.ctx.vk_allocator.destroy_image(self.depth_image);
         for (0..MAX_FRAMES_IN_FLIGHT) |i| {
             self.ctx.logical_device.device.destroySemaphore(self.image_available_semaphores[i], null);
             self.ctx.logical_device.device.destroySemaphore(self.render_finished_semaphores[i], null);

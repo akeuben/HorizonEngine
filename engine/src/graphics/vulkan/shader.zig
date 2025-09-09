@@ -247,6 +247,18 @@ pub const VulkanPipeline = struct {
             .stencil_attachment_format = ctx.swapchain.format,
         };
 
+        const depth_stencil = vk.PipelineDepthStencilStateCreateInfo{
+            .depth_test_enable = vk.TRUE,
+            .depth_write_enable = vk.TRUE,
+            .depth_compare_op = .less,
+            .min_depth_bounds = 0.0,
+            .max_depth_bounds = 1.0,
+            .stencil_test_enable = vk.FALSE,
+            .depth_bounds_test_enable = vk.FALSE,
+            .front = undefined,
+            .back = undefined,
+        };
+
         const create_info = vk.GraphicsPipelineCreateInfo{
             .stage_count = 2,
             .p_stages = @ptrCast(shader_stages),
@@ -255,7 +267,7 @@ pub const VulkanPipeline = struct {
             .p_viewport_state = @ptrCast(&viewport_state),
             .p_rasterization_state = @ptrCast(&rasterizer),
             .p_multisample_state = @ptrCast(&multisampling),
-            .p_depth_stencil_state = null,
+            .p_depth_stencil_state = @ptrCast(&depth_stencil),
             .p_color_blend_state = @ptrCast(&color_blending),
             .p_dynamic_state = @ptrCast(&dynamic_state),
             .layout = vk_layout,

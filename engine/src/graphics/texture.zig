@@ -68,6 +68,7 @@ pub const Texture = union(context.API) {
 
     pub fn deinit(self: *const Texture) void {
         switch(self.*) {
+            .OPEN_GL => self.OPEN_GL.deinit(),
             .VULKAN => self.VULKAN.deinit(),
             inline else => log.not_implemented("Texture::deinit", self.*),
         }
@@ -81,6 +82,7 @@ pub const TextureSampler = union(context.API) {
 
     pub fn deinit(self: *const TextureSampler) void {
         switch(self.*) {
+            .OPEN_GL => self.OPEN_GL.deinit(),
             .VULKAN => self.VULKAN.deinit(),
             inline else => log.not_implemented("TextureSampler::deinit", self.*),
         }

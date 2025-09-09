@@ -168,11 +168,11 @@ pub const VulkanContext = struct {
     }
 
     pub fn deinit(self: *VulkanContext) void {
-        self.vk_allocator.deinit();
         self.logical_device.device.deviceWaitIdle() catch {};
         self.logical_device.device.destroyDescriptorPool(self.descriptor_pool, null);
         self.logical_device.device.destroyCommandPool(self.command_pool, null);
         self.swapchain.deinit();
+        self.vk_allocator.deinit();
         self.logical_device.deinit();
 
         self.instance.instance.destroySurfaceKHR(self.surface, null);
