@@ -76,9 +76,9 @@ pub const Window = union(enum) {
         }
     }
 
-    pub fn swap(self: Window) void {
+    pub fn swap(self: Window, ctx: *const Context) void {
         switch (self) {
-            inline else => |case| case.swap(),
+            inline else => |case| case.swap(ctx),
         }
     }
 

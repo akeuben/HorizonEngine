@@ -108,12 +108,12 @@ pub fn main() !void {
 
     root_event_node.add_child(window.get_event_node());
 
-    const target = context.get_target();
+    var target = context.get_target();
 
     var cube_vbuffer = try graphics.VertexBuffer.init(&context, Vertex, cube_vertices);
     defer cube_vbuffer.deinit();
 
-    const image = try stb.StbImage.load_png("assets/logo_square_colour.png");
+    const image = try stb.StbImage.load_png("assets/Banana-Single.jpg");
     defer image.deinit();
 
     const texture = graphics.Texture.init(&context, &image);
@@ -168,18 +168,20 @@ pub fn main() !void {
     while (!window.should_close()) {
         const current_frame_time: f64 = @floatFromInt(std.time.nanoTimestamp());
         const t: f32 = @as(f32, @floatCast(current_frame_time - last_frame_time)) / 1E9;
-        rot += t * speed;
+        rot += -t * speed;
         //log.info("FPS: {d:.2}", .{1.0/t});
         mats.proj = zm.Mat4f.perspective(std.math.degreesToRadians(70), @as(f32, @floatFromInt(window.get_size_pixels()[0])) / @as(f32, @floatFromInt(window.get_size_pixels()[1])), 0.1, 100).transpose();
         mats.view = zm.Mat4f.lookAt(.{4.0 * std.math.cos(rot), 0.0, 4.0 * std.math.sin(rot)}, .{0, 0, 0}, .{0, 1, 0}).transpose();
+        mats.model = zm.Mat4f.rotation(.{1, 0, 0}, std.math.degreesToRadians(rot * 20)).transpose();
         uniform.set_data(UniformBufferObject, mats);
+
         window.start_frame();
 
         target.start()
             .draw(&cube)
             .end();
 
-        window.swap();
+        window.swap(&context);
         window.update();
 
         last_frame_time = current_frame_time;

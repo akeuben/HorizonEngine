@@ -9,8 +9,8 @@ const swapchain = @import("swapchain.zig");
 const RenderTarget = @import("../target.zig").RenderTarget;
 
 pub const VulkanRenderTarget = union(enum) {
-    SWAPCHAIN: *const swapchain.Swapchain,
-    OTHER: *const OtherVulkanRenderTarget,
+    SWAPCHAIN: *swapchain.Swapchain,
+    OTHER: *OtherVulkanRenderTarget,
 
     pub fn init(ctx: *const context.VulkanContext, allocator: std.mem.Allocator) !VulkanRenderTarget {
         return VulkanRenderTarget{

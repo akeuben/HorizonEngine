@@ -108,11 +108,11 @@ pub const DesktopWindow = struct {
         }
     }
 
-    pub fn swap(self: *DesktopWindow) void {
-        switch (self.context.*) {
+    pub fn swap(self: *DesktopWindow, ctx: *const Context) void {
+        switch (ctx.*) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
             .VULKAN => {
-                self.context.VULKAN.swapchain.swap(&Window.Window{ .desktop = self });
+                ctx.VULKAN.swapchain.swap(&Window.Window{ .desktop = self });
             },
             .NONE => {},
         }

@@ -110,12 +110,13 @@ pub const Swapchain = struct {
     depth_image: vk_allocator.AllocatedVulkanImage,
     depth_image_view: vk.ImageView,
     format: vk.Format,
+    depth_format: vk.Format,
     extent: vk.Extent2D,
     current_image_index: ?usize,
     current_frame: usize,
     in_flight_fences: [MAX_FRAMES_IN_FLIGHT]vk.Fence,
     image_available_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-    render_finished_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
+    render_finished_semaphores: []vk.Semaphore,
     command_buffers: [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
     resized: bool,
     allocator: std.mem.Allocator,
@@ -128,13 +129,13 @@ pub const Swapchain = struct {
         swapchain.allocator = allocator;
         swapchain.resized = false;
         swapchain.swapchain = .null_handle;
+        swapchain.depth_format = find_depth_format(ctx);
 
         try create_swapchain(&swapchain, window.get_size_pixels());
         try create_image_views(&swapchain);
         create_depth_image(&swapchain);
 
         var image_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
-        var render_semaphores: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore = @splat(undefined);
         var fences: [MAX_FRAMES_IN_FLIGHT]vk.Fence = @splat(undefined);
 
         for (0..MAX_FRAMES_IN_FLIGHT) |i| {
@@ -142,12 +143,10 @@ pub const Swapchain = struct {
                 .flags = .{ .signaled_bit = true },
             }, null);
             image_semaphores[i] = try ctx.logical_device.device.createSemaphore(&.{}, null);
-            render_semaphores[i] = try ctx.logical_device.device.createSemaphore(&.{}, null);
         }
 
         swapchain.in_flight_fences = fences;
         swapchain.image_available_semaphores = image_semaphores;
-        swapchain.render_finished_semaphores = render_semaphores;
 
         const command_buffer_info = vk.CommandBufferAllocateInfo{
             .command_pool = ctx.command_pool,
@@ -161,12 +160,11 @@ pub const Swapchain = struct {
     }
 
     fn create_depth_image(self: *Swapchain) void {
-        const format = find_depth_format(self.ctx);
-        self.depth_image = self.ctx.vk_allocator.create_image(.{ .width = self.extent.width, .height = self.extent.height, .depth = 1}, format, .optimal, .{ .depth_stencil_attachment_bit = true }, .{ .device_local_bit = true });
-        self.depth_image_view = texture.create_image_view(self.ctx, self.depth_image.asVulkanImage(), format, .{ .depth_bit = true }) catch {
+        self.depth_image = self.ctx.vk_allocator.create_image(.{ .width = self.extent.width, .height = self.extent.height, .depth = 1}, self.depth_format, .optimal, .{ .depth_stencil_attachment_bit = true }, .{ .device_local_bit = true });
+        self.depth_image_view = texture.create_image_view(self.ctx, self.depth_image.asVulkanImage(), self.depth_format, .{ .depth_bit = true }) catch {
             log.fatal("Failed to create depth image view", .{});
         };
-        memory.transition_image_layout(self.ctx, &self.depth_image, format, .undefined, .depth_stencil_attachment_optimal);
+        memory.transition_image_layout(self.ctx, &self.depth_image, self.depth_format, .undefined, .depth_stencil_attachment_optimal);
     }
 
     fn create_swapchain(self: *Swapchain, size: @Vector(2, i32)) !void {
@@ -226,14 +224,18 @@ pub const Swapchain = struct {
 
     fn create_image_views(self: *Swapchain) !void {
         const images = try self.ctx.logical_device.device.getSwapchainImagesAllocKHR(self.swapchain, self.allocator);
+        const render_finished_semaphores = try self.ctx.allocator.alloc(vk.Semaphore, images.len);
 
         const image_views = try self.allocator.alloc(vk.ImageView, images.len);
         for (images, 0..) |image, i| {
+            memory.transition_swapchain_image_layout(self.ctx, image);
             image_views[i] = try texture.create_image_view(self.ctx, image, self.format, .{ .color_bit = true });
+            render_finished_semaphores[i] = try self.ctx.logical_device.device.createSemaphore(&.{}, null);
         }
 
         self.images = images;
         self.image_views = image_views;
+        self.render_finished_semaphores = render_finished_semaphores;
     }
 
     pub fn recreate(self: *Swapchain, size: @Vector(2, i32)) !void {
@@ -241,6 +243,9 @@ pub const Swapchain = struct {
 
         for (self.image_views) |view| {
             self.ctx.logical_device.device.destroyImageView(view, null);
+        }
+        for(self.render_finished_semaphores) |sem| {
+            self.ctx.logical_device.device.destroySemaphore(sem, null);
         }
         self.ctx.logical_device.device.destroyImageView(self.depth_image_view, null);
         self.ctx.vk_allocator.destroy_image(self.depth_image);
@@ -262,6 +267,10 @@ pub const Swapchain = struct {
             log.err("Failed to wait for previous frame to finish!", .{});
         }
 
+        self.ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fences[self.current_frame])) catch {
+            log.err("Failed to reset previous frame fence", .{});
+        };
+
         const result = self.ctx.logical_device.device.acquireNextImageKHR(self.swapchain, std.math.maxInt(u64), self.image_available_semaphores[self.current_frame], .null_handle) catch {
             log.err("Failed to acquire next image from swapchain!", .{});
             return AcquireImageError.Other;
@@ -275,15 +284,11 @@ pub const Swapchain = struct {
             return AcquireImageError.Other;
         }
 
-        self.ctx.logical_device.device.resetFences(1, @ptrCast(&self.in_flight_fences[self.current_frame])) catch {
-            log.err("Failed to reset previous frame fence", .{});
-        };
-
         self.current_image_index = result.image_index;
     }
 
     pub fn swap(self: *Swapchain, window: *const Window) void {
-        const wait_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphores[self.current_frame]};
+        const wait_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphores[self.current_image_index.?]};
 
         const image_index = @as(u32, @intCast(self.current_image_index.?));
 
@@ -314,7 +319,7 @@ pub const Swapchain = struct {
         }
     }
 
-    pub fn start(self: *const Swapchain) void {
+    pub fn start(self: *Swapchain) void {
         self.ctx.logical_device.device.resetCommandBuffer(self.command_buffers[self.current_frame], .{}) catch {
             log.err("Failed to reset command buffer", .{});
         };
@@ -393,7 +398,7 @@ pub const Swapchain = struct {
         const wait_semaphores: []const vk.Semaphore = &.{self.image_available_semaphores[self.current_frame]};
         const wait_stages: vk.PipelineStageFlags = .{ .color_attachment_output_bit = true };
 
-        const signal_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphores[self.current_frame]};
+        const signal_semaphores: []const vk.Semaphore = &.{self.render_finished_semaphores[self.current_image_index.?]};
 
         const submit_info = vk.SubmitInfo{
             .wait_semaphore_count = 1,
@@ -425,12 +430,15 @@ pub const Swapchain = struct {
         self.ctx.vk_allocator.destroy_image(self.depth_image);
         for (0..MAX_FRAMES_IN_FLIGHT) |i| {
             self.ctx.logical_device.device.destroySemaphore(self.image_available_semaphores[i], null);
-            self.ctx.logical_device.device.destroySemaphore(self.render_finished_semaphores[i], null);
             self.ctx.logical_device.device.destroyFence(self.in_flight_fences[i], null);
         }
         for (self.image_views) |view| {
             self.ctx.logical_device.device.destroyImageView(view, null);
         }
+        for (self.render_finished_semaphores) |sem| {
+            self.ctx.logical_device.device.destroySemaphore(sem, null);
+        }
+        self.allocator.free(self.render_finished_semaphores);
         self.allocator.free(self.image_views);
         self.ctx.logical_device.device.destroySwapchainKHR(self.swapchain, null);
         self.allocator.free(self.images);

@@ -12,6 +12,7 @@ const ShaderBindingElement = @import("../shader.zig").ShaderBindingElement;
 const std = @import("std");
 const types = @import("../type.zig");
 const MAX_FRAMES_IN_FLIGHT = @import("./swapchain.zig").MAX_FRAMES_IN_FLIGHT;
+const memory = @import("memory.zig");
 
 const shaderc = @import("shaderc");
 
@@ -243,8 +244,8 @@ pub const VulkanPipeline = struct {
             .color_attachment_count = 1,
             .p_color_attachment_formats = @ptrCast(&ctx.swapchain.format),
             .view_mask = 0,
-            .depth_attachment_format = ctx.swapchain.format,
-            .stencil_attachment_format = ctx.swapchain.format,
+            .depth_attachment_format = ctx.swapchain.depth_format,
+            .stencil_attachment_format = if (memory.has_stencil_component(ctx.swapchain.depth_format)) ctx.swapchain.depth_format else undefined,
         };
 
         const depth_stencil = vk.PipelineDepthStencilStateCreateInfo{

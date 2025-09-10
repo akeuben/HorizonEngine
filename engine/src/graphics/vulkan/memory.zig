@@ -8,7 +8,7 @@ const oneshot_init_err = error {
     StartError,
 };
 
-inline fn has_stencil_component(format: vk.Format) bool {
+pub inline fn has_stencil_component(format: vk.Format) bool {
     return format == .d32_sfloat_s8_uint or format == .d24_unorm_s8_uint;
 }
 
@@ -127,6 +127,35 @@ pub fn transition_image_layout(ctx: *const context.VulkanContext, image: *const 
         log.err("Invalid vulkan image transition", .{});
         return;
     }
+
+    ctx.logical_device.device.cmdPipelineBarrier(command_buffer, source_stage, destination_stage, .{}, 0, null, 0, null, 1, @ptrCast(&barrier));
+}
+
+pub fn transition_swapchain_image_layout(ctx: *const context.VulkanContext, image: vk.Image) void {
+    const command_buffer = init_oneshot_command(ctx) catch {
+        return;
+    };
+    defer deinit_oneshot_command(command_buffer, ctx);
+    var barrier = vk.ImageMemoryBarrier{
+        .old_layout = .undefined,
+        .new_layout = .present_src_khr,
+        .src_queue_family_index = vk.QUEUE_FAMILY_IGNORED,
+        .dst_queue_family_index = vk.QUEUE_FAMILY_IGNORED,
+        .image = image,
+        .subresource_range = .{
+            .aspect_mask = .{ 
+                .color_bit = true,
+            },
+            .base_mip_level = 0,
+            .level_count = 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+        .src_access_mask = .{},
+        .dst_access_mask = .{},
+    };
+    const source_stage: vk.PipelineStageFlags = .{ .top_of_pipe_bit = true };
+    const destination_stage: vk.PipelineStageFlags = .{ .transfer_bit = true };
 
     ctx.logical_device.device.cmdPipelineBarrier(command_buffer, source_stage, destination_stage, .{}, 0, null, 0, null, 1, @ptrCast(&barrier));
 }
