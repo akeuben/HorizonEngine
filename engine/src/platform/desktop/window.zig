@@ -11,6 +11,7 @@ const VulkanContext = @import("../../graphics/vulkan/context.zig").VulkanContext
 const VulkanSwapchain = @import("../../graphics/vulkan/swapchain.zig");
 const platform = @import("platform");
 const Window = @import("../window.zig");
+const event = @import("../../event/event.zig");
 
 fn error_callback(error_code: c_int, message: [*c]const u8) callconv(.C) void {
     log.debug("glfw - {}: {s}\n", .{ error_code, message });
@@ -22,12 +23,17 @@ pub extern fn glfwCreateWindowSurface(instance: vk.Instance, window: *glfw.GLFWw
 
 fn resize_callback(glfw_window: ?*glfw.GLFWwindow, width: i32, height: i32) callconv(.C) void {
     const window: ?*DesktopWindow = @ptrCast(@alignCast(glfw.glfwGetWindowUserPointer(glfw_window)));
-    window.?.context.notify_resized(.{ width, height });
+    _ = window.?.event_node.handle_event_at_root(event.window.WindowResizeEvent, &.{
+        .width = width,
+        .height = height,
+    });
+    log.debug("was resized", .{});
 }
 
 pub const DesktopWindow = struct {
     window: ?*glfw.GLFWwindow,
     context: *Context,
+    event_node: event.EventNode,
 
     pub fn init() void {
         _ = glfw.glfwSetErrorCallback(error_callback);
@@ -53,6 +59,7 @@ pub const DesktopWindow = struct {
         var window = allocator.create(DesktopWindow) catch unreachable;
         window.window = glfw.glfwCreateWindow(480, 320, "Engine", null, null);
         window.context = context;
+        window.event_node = event.EventNode.init(allocator, window, &.{});
         glfw.glfwSetWindowUserPointer(window.window, window);
         _ = glfw.glfwSetFramebufferSizeCallback(window.window, resize_callback);
         glfw.glfwSwapInterval(0);
@@ -73,6 +80,10 @@ pub const DesktopWindow = struct {
             .VULKAN => {},
             .NONE => {},
         }
+    }
+
+    pub fn get_event_node(self: *DesktopWindow) *event.EventNode {
+        return &self.event_node;
     }
 
     pub fn start_frame(self: DesktopWindow) void {

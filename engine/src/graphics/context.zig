@@ -7,6 +7,7 @@ const Pipeline = @import("shader.zig").Pipeline;
 const VertexBuffer = @import("buffer.zig").VertexBuffer;
 const RenderTarget = @import("target.zig").RenderTarget;
 const log = @import("../utils/log.zig");
+const event = @import("../event/event.zig");
 
 /// A Graphics API
 pub const API = enum { OPEN_GL, VULKAN, NONE };
@@ -91,16 +92,15 @@ pub const Context = union(API) {
         };
     }
 
-    /// Hint to the API that the window has been resized. May result in the recreation of the Swapchain.
-    ///
-    /// **Parameter** `self`: The context to notify.
-    /// **Parameter** `new_size`: The new size of the window.
-    pub fn notify_resized(self: *Context, new_size: @Vector(2, i32)) void {
-        switch (self.*) {
-            .OPEN_GL => opengl.OpenGLContext.notify_resized(self.OPEN_GL, new_size),
-            .VULKAN => vulkan.VulkanContext.notify_resized(self.VULKAN),
-            .NONE => log.not_implemented("Context::notify_resized", self.*),
-        }
+    pub fn get_event_node(self: *Context) ?*event.EventNode {
+        return switch(self.*) {
+            .OPEN_GL => self.OPEN_GL.get_event_node(),
+            .VULKAN => self.VULKAN.get_event_node(),
+            inline else => {
+                log.not_implemented("Context::get_event_node", self.*);
+                return null;
+            },
+        };
     }
 };
 

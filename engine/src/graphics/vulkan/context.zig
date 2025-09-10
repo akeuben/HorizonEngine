@@ -15,6 +15,7 @@ const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
 const vk_allocator = @import("allocator.zig");
 const Context = @import("../context.zig").Context;
 const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
+const event = @import("../../event/event.zig");
 
 pub const BaseDispatch = vk.BaseWrapper;
 pub const InstanceDispatch = vk.InstanceWrapper;
@@ -25,6 +26,7 @@ pub const Device = vk.DeviceProxy;
 pub const VulkanContext = struct {
     loaded: bool = false,
     allocator: std.mem.Allocator,
+    event_node: event.EventNode,
 
     creation_options: ContextCreationOptions,
 
@@ -52,6 +54,12 @@ pub const VulkanContext = struct {
         var ctx = allocator.create(VulkanContext) catch unreachable;
         ctx.allocator = allocator;
         ctx.creation_options = options;
+
+        ctx.event_node = event.EventNode.init(allocator, ctx, &.{
+            event.init_handler_custom(VulkanContext, event.window.WindowResizeEvent, &on_window_resize),
+        });
+
+        log.debug("Addr: {}", .{&on_window_resize});
 
         return ctx;
     }
@@ -163,8 +171,15 @@ pub const VulkanContext = struct {
         return self.target;
     }
 
-    pub fn notify_resized(self: *VulkanContext) void {
-        self.swapchain.resized = true;
+    pub fn get_event_node(self: *VulkanContext) ?*event.EventNode {
+        return &self.event_node;
+    }
+
+    pub fn on_window_resize(self: ?*VulkanContext, e: *const event.window.WindowResizeEvent, _: event.EventResult) event.EventResult {
+        self.?.swapchain.resized = true;
+        log.debug("Window Resized to {}x{}", .{e.width, e.height});
+
+        return .HANDLED;
     }
 
     pub fn deinit(self: *VulkanContext) void {

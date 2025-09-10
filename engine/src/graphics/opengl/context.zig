@@ -7,6 +7,7 @@ const OpenGLPipeline = @import("shader.zig").OpenGLPipeline;
 const OpenGLRenderTarget = @import("target.zig").OpenGLRenderTarget;
 const Context = @import("../context.zig").Context;
 const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
+const event = @import("../../event/event.zig");
 
 fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
     log.debug("A GL error occurred.", .{});
@@ -22,6 +23,7 @@ fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLe
 pub const OpenGLContext = struct {
     target: OpenGLRenderTarget,
     allocator: std.mem.Allocator,
+    event_node: event.EventNode,
 
     creation_options: ContextCreationOptions,
 
@@ -34,6 +36,10 @@ pub const OpenGLContext = struct {
         };
         ctx.allocator = allocator;
         ctx.creation_options = options;
+
+        ctx.event_node = event.EventNode.init(allocator, ctx, &.{
+            event.init_handler_custom(OpenGLContext, event.window.WindowResizeEvent, &on_window_resized),
+        });
 
         return ctx;
     }
@@ -58,8 +64,14 @@ pub const OpenGLContext = struct {
         gl.frontFace(gl.CCW);
     }
 
-    pub fn notify_resized(_: *OpenGLContext, new_size: @Vector(2, i32)) void {
-        gl.viewport(0, 0, new_size[0], new_size[1]);
+    fn on_window_resized(_: ?*OpenGLContext, e: *const event.window.WindowResizeEvent, _: event.EventResult) event.EventResult {
+        gl.viewport(0, 0, e.width, e.height);
+
+        return .HANDLED;
+    }
+
+    pub fn get_event_node(self: *OpenGLContext) ?*event.EventNode {
+        return &self.event_node;
     }
 
     pub fn get_target(self: *OpenGLContext) OpenGLRenderTarget {

@@ -40,7 +40,6 @@ pub const OpenGLVertexRenderObject = struct {
                 .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
                 .IMAGE_SAMPLER => {
                     gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
-                    gl.uniform1i(@intCast(binding.layout.point), @intCast(binding_to_gl_texture_index(binding.layout.point)));
                     binding.element.IMAGE_SAMPLER.OPEN_GL.bind();
                 },
             }
@@ -87,7 +86,6 @@ pub const OpenGLIndexRenderObject = struct {
                 .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
                 .IMAGE_SAMPLER => {
                     gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
-                    gl.uniform1i(@intCast(binding.layout.point), @intCast(binding_to_gl_texture_index(binding.layout.point)));
                     binding.element.IMAGE_SAMPLER.OPEN_GL.bind();
                 },
             }

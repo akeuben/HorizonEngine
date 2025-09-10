@@ -8,6 +8,7 @@ const VulkanContext = @import("../graphics/vulkan/context.zig").VulkanContext;
 const os = @import("platform").os;
 
 const WindowError = error{UnsupportedPlatform};
+const event = @import("../event/event.zig");
 
 var initialized = false;
 
@@ -48,6 +49,12 @@ pub const Window = union(enum) {
     pub fn get_size_pixels(self: Window) @Vector(2, i32) {
         return switch (self) {
             inline else => |case| case.get_size_pixels(),
+        };
+    }
+
+    pub fn get_event_node(self: *Window) *event.EventNode {
+        return switch(self.*) {
+            inline else => |case| case.get_event_node(),
         };
     }
 

@@ -9,6 +9,11 @@ const graphics = engine.graphics;
 const log = engine.log;
 const Window = engine.platform.Window;
 
+const EventNode = engine.event.EventNode;
+const init_handler = engine.event.init_handler;
+const init_handler_custom = engine.event.init_handler_custom;
+const EventResult = engine.event.EventResult;
+
 const cube_vertices: []const Vertex = &[_]Vertex{
     // +Z face (red)
     .{ .position = .{  0.5,  0.5,  0.5 }, .color = .{ 1.0, 0.0, 0.0 }, .uv = .{1.0, 1.0} },
@@ -68,10 +73,15 @@ const UniformBufferObject = struct {
     proj: zm.Mat4f,
 };
 
-const use_debug = false;
+const use_debug = true;
 
 pub fn main() !void {
     log.set_level(.DEBUG);
+
+    var val: u32 = 5129;
+
+    var root_event_node = EventNode.init(std.heap.page_allocator, &val, &.{
+    });
 
     const args = try std.process.argsAlloc(std.heap.page_allocator);
     defer std.process.argsFree(std.heap.page_allocator, args);
@@ -88,15 +98,22 @@ pub fn main() !void {
     }
     defer context.deinit();
 
-    const window = Window.init(&context, std.heap.page_allocator);
+    const context_node: ?*EventNode = context.get_event_node();
+    if(context_node != null) {
+        root_event_node.add_child(context_node.?);
+    }
+
+    var window = Window.init(&context, std.heap.page_allocator);
     context.load(&window);
+
+    root_event_node.add_child(window.get_event_node());
 
     const target = context.get_target();
 
     var cube_vbuffer = try graphics.VertexBuffer.init(&context, Vertex, cube_vertices);
     defer cube_vbuffer.deinit();
 
-    const image = try stb.StbImage.load_png("assets/texture.jpg");
+    const image = try stb.StbImage.load_png("assets/logo_square_colour.png");
     defer image.deinit();
 
     const texture = graphics.Texture.init(&context, &image);

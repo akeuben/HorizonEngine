@@ -30,7 +30,7 @@ pub fn init_oneshot_command(ctx: *const context.VulkanContext) oneshot_init_err!
     }) catch {
         log.err("Failed to start command buffer for memory transfer operation", .{});
         ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
-        ctx.logical_device.device.freeCommandBuffers(ctx.command_pool, 1, @ptrCast(&command_buffer));
+        //ctx.logical_device.device.freeCommandBuffers(ctx.command_pool, 1, @ptrCast(&command_buffer));
         return oneshot_init_err.StartError;
     };
 
@@ -39,7 +39,7 @@ pub fn init_oneshot_command(ctx: *const context.VulkanContext) oneshot_init_err!
 
 pub fn deinit_oneshot_command(command_buffer: vk.CommandBuffer, ctx: *const context.VulkanContext) void {
     defer ctx.logical_device.device.queueWaitIdle(ctx.graphics_queue) catch {};
-    defer ctx.logical_device.device.freeCommandBuffers(ctx.command_pool, 1, @ptrCast(&command_buffer));
+    //defer ctx.logical_device.device.freeCommandBuffers(ctx.command_pool, 1, @ptrCast(&command_buffer));
 
     ctx.logical_device.device.endCommandBuffer(command_buffer) catch {
         log.err("Failed to record command buffer for memory transfer operation", .{});
