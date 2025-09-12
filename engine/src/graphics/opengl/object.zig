@@ -37,7 +37,9 @@ pub const OpenGLVertexRenderObject = struct {
         gl.bindVertexArray(self.gl_array);
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
-                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .UNIFORM_BUFFER => {
+                    gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer);
+                },
                 .IMAGE_SAMPLER => {
                     gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
                     binding.element.IMAGE_SAMPLER.OPEN_GL.bind();
@@ -57,13 +59,13 @@ pub const OpenGLIndexRenderObject = struct {
     layout: types.BufferLayout,
     count: u32,
     bindings: *const OpenGLShaderBindingSet,
+    pipeline: *const OpenGLPipeline,
 
     pub fn init(_: *const OpenGLContext, pipeline: *const OpenGLPipeline, vertex_buffer: *const OpenGLVertexBuffer, index_buffer: *const OpenGLIndexBuffer, bindings: *const OpenGLShaderBindingSet) OpenGLIndexRenderObject {
         var gl_array: u32 = 0;
         gl.genVertexArrays(1, &gl_array);
 
         gl.bindVertexArray(gl_array);
-        gl.useProgram(pipeline.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer.gl_buffer);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer.gl_buffer);
 
@@ -76,14 +78,19 @@ pub const OpenGLIndexRenderObject = struct {
             .layout = vertex_buffer.layout.?,
             .count = index_buffer.count,
             .bindings = bindings,
+            .pipeline = pipeline,
         };
     }
 
     pub fn draw(self: *const OpenGLIndexRenderObject, _: *const OpenGLRenderTarget) void {
+        gl.useProgram(self.pipeline.program);
         gl.bindVertexArray(self.gl_array);
         for(self.bindings.bindings) |binding| {
             switch(binding.element) {
-                .UNIFORM_BUFFER => gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer),
+                .UNIFORM_BUFFER => {
+                    gl.uniformBlockBinding(self.pipeline.program, binding.layout.point, binding.layout.point);
+                    gl.bindBufferBase(gl.UNIFORM_BUFFER, binding.layout.point, binding.element.UNIFORM_BUFFER.OPEN_GL.gl_buffer);
+                },
                 .IMAGE_SAMPLER => {
                     gl.activeTexture(binding_to_gl_texture_index(binding.layout.point));
                     binding.element.IMAGE_SAMPLER.OPEN_GL.bind();

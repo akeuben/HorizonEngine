@@ -13,9 +13,11 @@ const event = @import("../event/event.zig");
 
 var initialized = false;
 
+const LinuxWindow = X11Window;
+
 /// A window that can be rendered to.
 pub const Window = union(enum) {
-    linux: *X11Window,
+    linux: *LinuxWindow,
 
     /// Create a window with a given context.
     ///
@@ -24,7 +26,7 @@ pub const Window = union(enum) {
     pub fn init(context: *Context, allocator: std.mem.Allocator) Window {
         if (!initialized) {
             switch (comptime os) {
-                .linux => X11Window.init(),
+                .linux => LinuxWindow.init(),
                 else => {
                     log.fatal("Attempted to initialize window system on unsupported platform {s}", .{@tagName(os)});
                 },
@@ -32,7 +34,7 @@ pub const Window = union(enum) {
             initialized = true;
         }
         return switch (comptime os) {
-            .linux => .{ .linux = X11Window.create_window(context, allocator) },
+            .linux => .{ .linux = LinuxWindow.create_window(context, allocator) },
             else => {
                 log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(os)});
             },

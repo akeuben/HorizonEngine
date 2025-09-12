@@ -44,6 +44,8 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     lib.addIncludePath(vendor.stb.get_include_path(b));
     lib.linkLibrary(stb);
 
+    lib.linkSystemLibrary("GL");
+
     // Link Zig Libraries
     lib.root_module.addImport("zm", zm.module("zm"));
     lib.root_module.addImport("vulkan", vulkan_zig);

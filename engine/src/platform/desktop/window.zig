@@ -112,7 +112,7 @@ pub const DesktopWindow = struct {
         switch (ctx.*) {
             .OPEN_GL => glfw.glfwSwapBuffers(self.window),
             .VULKAN => {
-                ctx.VULKAN.swapchain.swap(&Window.Window{ .desktop = self });
+                ctx.VULKAN.swapchain.swap(&Window.Window{ .linux = self });
             },
             .NONE => {},
         }
