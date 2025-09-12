@@ -17,6 +17,11 @@
             .url = "git+https://github.com/tiawl/shaderc.zig#9b2703ec5273d56e0f6987e3d263b1ad592bbee8",
             .hash = "shaderc_zig-1.0.0-mOl841ZjAwBWMHRQLiB-O0CGh3f_CykHbvOAI8SOwmy4",
         },
+        .x11_headers = .{
+            .url = "https://pkg.machengine.org/x11-headers/bc049ff07d31014d4d409cc328c3feb57c9b9a83.tar.gz",
+            .hash = "1220083b369e019a5efbd188a58a25759c09a126e1847200ff9e88f5ccbd2dc846e3",
+            .lazy = true,
+        },
     },
 
     .paths = .{

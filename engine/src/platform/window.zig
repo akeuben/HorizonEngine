@@ -1,5 +1,6 @@
 const std = @import("std");
 const DesktopWindow = @import("desktop/window.zig").DesktopWindow;
+const X11Window = @import("linux/window.zig").X11Window;
 const log = @import("../utils/log.zig");
 const Context = @import("../graphics/context.zig").Context;
 const VulkanExtension = @import("../graphics/vulkan/extension.zig").VulkanExtension;
@@ -14,7 +15,7 @@ var initialized = false;
 
 /// A window that can be rendered to.
 pub const Window = union(enum) {
-    desktop: *DesktopWindow,
+    linux: *X11Window,
 
     /// Create a window with a given context.
     ///
@@ -23,8 +24,7 @@ pub const Window = union(enum) {
     pub fn init(context: *Context, allocator: std.mem.Allocator) Window {
         if (!initialized) {
             switch (comptime os) {
-                .linux => DesktopWindow.init(),
-                .windows => DesktopWindow.init(),
+                .linux => X11Window.init(),
                 else => {
                     log.fatal("Attempted to initialize window system on unsupported platform {s}", .{@tagName(os)});
                 },
@@ -32,8 +32,7 @@ pub const Window = union(enum) {
             initialized = true;
         }
         return switch (comptime os) {
-            .linux => .{ .desktop = DesktopWindow.create_window(context, allocator) },
-            .windows => .{ .desktop = DesktopWindow.create_window(context, allocator) },
+            .linux => .{ .linux = X11Window.create_window(context, allocator) },
             else => {
                 log.fatal("Attempted to create a window on an unsupported platform {s}", .{@tagName(os)});
             },
@@ -58,8 +57,8 @@ pub const Window = union(enum) {
         };
     }
 
-    pub fn update(self: Window) void {
-        switch (self) {
+    pub fn update(self: *Window) void {
+        switch (self.*) {
             inline else => |case| case.update(),
         }
     }

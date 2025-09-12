@@ -29,6 +29,13 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
         .optimize = optimize,
     });
 
+    if(b.lazyDependency("x11_headers", .{
+        .target = target,
+        .optimize = optimize,
+    })) |x11_headers| {
+        lib.linkLibrary(x11_headers.artifact("x11-headers"));
+    }
+
     // Link C Libraries
     lib.addIncludePath(vendor.glfw.get_include_path(b));
     lib.linkLibrary(glfw);
