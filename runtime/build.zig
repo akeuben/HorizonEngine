@@ -6,12 +6,15 @@ pub fn build_runtime(b: *std.Build, target: std.Build.ResolvedTarget, optimize: 
 
     const exe = b.addExecutable(.{
         .name = "engine_runtime",
-        .root_source_file = b.path("runtime/src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .use_llvm = true,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("runtime/src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
-    exe.root_module.addImport("engine", engine_obj.root_module);
+    exe.root_module.addImport("engine", engine_obj);
 
     return exe;
 }

@@ -5,21 +5,25 @@
     .version = "0.0.0",
 
     .dependencies = .{
-        .vulkan_zig = .{
-            .url = "https://github.com/Snektron/vulkan-zig/archive/9b4090c852760ce3210562f62ffaf301479c38ba.tar.gz",
-            .hash = "vulkan-0.0.0-r7Ytx2dUAwDhoUvuIqliqPUbyDZZi0bl_CQIwspUpHs_",
-        },
         .zm = .{
-            .url = "git+https://github.com/griush/zm#b4c563c1f52b80ccf7c81bdb4dc6b3ae50b09c8c",
-            .hash = "1220897b0db58d1867fef1672a72f886f27af6a22e561797c48c9f793b06961c60ab",
+            .url = "git+https://github.com/griush/zm#b5d70485dfc78baa9251a06a844d860fd00e9bcf",
+            .hash = "zm-0.4.0-cLX-WdndAACqPRGqhCAsd65iTajgaVVwrXhoLUQFKTOt",
         },
         .shaderc_zig = .{
-            .url = "git+https://github.com/tiawl/shaderc.zig#9b2703ec5273d56e0f6987e3d263b1ad592bbee8",
-            .hash = "shaderc_zig-1.0.0-mOl841ZjAwBWMHRQLiB-O0CGh3f_CykHbvOAI8SOwmy4",
+            .url = "git+https://github.com/tiawl/shaderc.zig#69b67221988aa84c91447775ad6157e4e80bab00",
+            .hash = "shaderc_zig-1.0.0-mOl846VjAwDV8YlqQFVvFsWsBa6dLNSiskpTy7lC1hmD",
         },
-        .x11_headers = .{
-            .url = "https://pkg.machengine.org/x11-headers/bc049ff07d31014d4d409cc328c3feb57c9b9a83.tar.gz",
-            .hash = "1220083b369e019a5efbd188a58a25759c09a126e1847200ff9e88f5ccbd2dc846e3",
+        .wayland = .{
+            .url = "git+https://github.com/ifreund/zig-wayland#1b5c038ec10da20ed3a15b0b2a6db1c21383e8ea",
+            .hash = "wayland-0.5.0-dev-lQa1khrMAQDJDwYFKpdH3HizherB7sHo5dKMECfvxQHe",
+        },
+        .vulkan = .{
+            .url = "git+https://github.com/Snektron/vulkan-zig?ref=zig-0.15-compat#f879074293f0e2f718c93fd19cc0a96260a3aa52",
+            .hash = "vulkan-0.0.0-r7Ytx6hBAwBUnt0XA-uOkR2hda4fAHFhQITNTgJpnFkY",
+        },
+        .X11_zig = .{
+            .url = "git+https://github.com/tiawl/X11.zig/#323f08e3f0661ece485e70ee8a76691792f8f8e5",
+            .hash = "X11_zig-1.0.0-UuAzbPsmQwC47kCPCoxR7xTsNXNZfltD3t9jAig20_d0",
             .lazy = true,
         },
     },

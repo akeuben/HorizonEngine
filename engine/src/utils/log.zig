@@ -28,23 +28,26 @@ const LogLevel = enum(u8) {
     }
 };
 
+var stdout_buffer: [1024]u8 = undefined;
 var log_level: LogLevel = .ERROR;
-const stdout = std.io.getStdErr().writer();
+var stdout = std.fs.File.stdout().writer(&stdout_buffer).interface;
 
-pub inline fn print(comptime level: LogLevel, format: []const u8, args: anytype) void {
+pub inline fn print(comptime level: LogLevel, comptime format: []const u8, args: anytype) void {
     if (@intFromEnum(level) < @intFromEnum(log_level)) return;
-    stdout.print("{s}", .{level.color()}) catch {};
+    stdout.writeAll(level.color()) catch {};
     stdout.print("{s}> ", .{level.as_string()}) catch {};
     stdout.print(format, args) catch {};
-    stdout.print("\u{001b}[37;40m\n", .{}) catch {};
+    stdout.writeAll("\u{001b}[37;40m\n") catch {};
+    stdout.flush() catch {};
 }
 
 pub inline fn debug(comptime format: []const u8, args: anytype) void {
     if (@intFromEnum(LogLevel.DEBUG) < @intFromEnum(log_level)) return;
-    stdout.print("{s}", .{LogLevel.DEBUG.color()}) catch {};
+    stdout.writeAll(LogLevel.DEBUG.color()) catch {};
     std.debug.print("{s}> ", .{LogLevel.DEBUG.as_string()});
     std.debug.print(format, args);
     std.debug.print("\u{001b}[37;40m\n", .{});
+    stdout.flush() catch {};
 }
 pub inline fn info(comptime format: []const u8, args: anytype) void {
     print(.INFO, format, args);
@@ -56,9 +59,10 @@ pub inline fn err(comptime format: []const u8, args: anytype) void {
     print(.ERROR, format, args);
 }
 pub inline fn fatal(comptime format: []const u8, args: anytype) void {
-    stdout.print("\n", .{}) catch {};
+    stdout.writeAll("\n") catch {};
     print(.FATAL, format, args);
-    stdout.print("\n", .{}) catch {};
+    stdout.writeAll("\n") catch {};
+    stdout.flush() catch {};
     @panic("A fatal exception occurred.");
 }
 

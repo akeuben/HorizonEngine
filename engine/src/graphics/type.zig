@@ -134,15 +134,9 @@ pub fn resolve_shader_type_info(comptime T: type) ShaderTypeError!ShaderTypeInfo
         zm.Vec2f => ShaderTypeInfo{ .size = @sizeOf(zm.Vec2f), .length = 2, .shader_type = .Vec2f },
         zm.Vec3f => ShaderTypeInfo{ .size = @sizeOf(zm.Vec3f), .length = 3, .shader_type = .Vec3f },
         zm.Vec4f => ShaderTypeInfo{ .size = @sizeOf(zm.Vec4f), .length = 4, .shader_type = .Vec4f },
-        zm.Vec2d => ShaderTypeInfo{ .size = @sizeOf(zm.Vec2d), .length = 2, .shader_type = .Vec2d },
-        zm.Vec3d => ShaderTypeInfo{ .size = @sizeOf(zm.Vec3d), .length = 3, .shader_type = .Vec3d },
-        zm.Vec4d => ShaderTypeInfo{ .size = @sizeOf(zm.Vec4d), .length = 4, .shader_type = .Vec4d },
         zm.Mat2f => ShaderTypeInfo{ .size = @sizeOf(zm.Mat2f), .length = 4, .shader_type = .Mat2f },
         zm.Mat3f => ShaderTypeInfo{ .size = @sizeOf(zm.Mat3f), .length = 9, .shader_type = .Mat3f },
         zm.Mat4f => ShaderTypeInfo{ .size = @sizeOf(zm.Mat4f), .length = 16, .shader_type = .Mat4f },
-        zm.Mat2d => ShaderTypeInfo{ .size = @sizeOf(zm.Mat2d), .length = 4, .shader_type = .Mat2d },
-        zm.Mat3d => ShaderTypeInfo{ .size = @sizeOf(zm.Mat3d), .length = 9, .shader_type = .Mat3d },
-        zm.Mat4d => ShaderTypeInfo{ .size = @sizeOf(zm.Mat4d), .length = 16, .shader_type = .Mat4d },
         else => ShaderTypeError.InvalidShaderType,
     };
 }

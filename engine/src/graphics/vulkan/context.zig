@@ -67,38 +67,38 @@ pub const VulkanContext = struct {
     pub fn load(self: *VulkanContext, window: *const Window) void {
         self.loaded = true;
         log.debug("Loading vulkan base bindings", .{});
-        self.vkb = BaseDispatch.load(@as(*const fn (vk.Instance, [*c]const u8) callconv(.C) ?*const fn () callconv(.C) void, @ptrCast(window.get_proc_addr_fn())));
+        self.vkb = BaseDispatch.load(@as(*const fn (vk.Instance, [*c]const u8) callconv(.c) ?*const fn () callconv(.c) void, @ptrCast(window.get_proc_addr_fn())));
         log.debug("Loaded vulkan base bindings", .{});
 
-        var instance_extensions = std.ArrayList(VulkanExtension).init(self.allocator);
-        defer instance_extensions.deinit();
+        var instance_extensions = std.ArrayList(VulkanExtension).initCapacity(self.allocator, 0) catch unreachable;
+        defer instance_extensions.deinit(self.allocator);
 
-        var device_extensions = std.ArrayList(VulkanExtension).init(self.allocator);
-        defer device_extensions.deinit();
+        var device_extensions = std.ArrayList(VulkanExtension).initCapacity(self.allocator, 0) catch unreachable;
+        defer device_extensions.deinit(self.allocator);
 
-        var layers = std.ArrayList(VulkanLayer).init(self.allocator);
-        defer layers.deinit();
+        var layers = std.ArrayList(VulkanLayer).initCapacity(self.allocator, 0) catch unreachable;
+        defer layers.deinit(self.allocator);
 
         const window_instance_extensions = window.get_vk_exts(self.allocator);
         defer self.allocator.free(window_instance_extensions);
 
-        instance_extensions.appendSlice(window_instance_extensions) catch {};
-        if (self.creation_options.use_debug) instance_extensions.appendSlice(validation.debug_required_instance_extensions) catch {};
+        instance_extensions.appendSlice(self.allocator, window_instance_extensions) catch {};
+        if (self.creation_options.use_debug) instance_extensions.appendSlice(self.allocator, validation.debug_required_instance_extensions) catch {};
 
-        device_extensions.append(.{
+        device_extensions.append(self.allocator, .{
             .name = vk.extensions.khr_swapchain.name,
             .required = true,
         }) catch {};
-        device_extensions.append(.{
+        device_extensions.append(self.allocator, .{
             .name = vk.extensions.khr_maintenance_1.name,
             .required = true,
         }) catch {};
 
-        if (self.creation_options.use_debug) layers.appendSlice(validation.debug_required_layers) catch {};
+        if (self.creation_options.use_debug) layers.appendSlice(self.allocator, validation.debug_required_layers) catch {};
 
-        const instance_extension_slice: []VulkanExtension = instance_extensions.toOwnedSlice() catch &.{};
-        const device_extension_slice: []VulkanExtension = device_extensions.toOwnedSlice() catch &.{};
-        const layer_slice: []VulkanLayer = layers.toOwnedSlice() catch &.{};
+        const instance_extension_slice: []VulkanExtension = instance_extensions.toOwnedSlice(self.allocator) catch &.{};
+        const device_extension_slice: []VulkanExtension = device_extensions.toOwnedSlice(self.allocator) catch &.{};
+        const layer_slice: []VulkanLayer = layers.toOwnedSlice(self.allocator) catch &.{};
 
         self.instance = instance.Instance.init(self, instance_extension_slice, layer_slice, "Test App", self.allocator) catch {
             log.fatal("Failed to initialize vulkan", .{});

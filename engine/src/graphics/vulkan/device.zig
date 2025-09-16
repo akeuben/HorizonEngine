@@ -68,7 +68,7 @@ pub const PhysicalDevice = struct {
 
         const physcial_features = ctx.instance.instance.getPhysicalDeviceFeatures(device);
 
-        if(physcial_features.sampler_anisotropy == vk.FALSE) {
+        if(physcial_features.sampler_anisotropy == .false) {
             log.warn("Device {s} does not support sampler anisotropy. Assigning a score of 0", .{properties.device_name});
         }
 
@@ -121,27 +121,27 @@ pub const LogicalDevice = struct {
         const queue_priority: f32 = 1.0;
 
         var queue_create_infos = try std.ArrayList(vk.DeviceQueueCreateInfo).initCapacity(std.heap.page_allocator, unique_queue_family_count);
-        defer queue_create_infos.deinit();
+        defer queue_create_infos.deinit(ctx.allocator);
 
         for (0..unique_queue_family_count) |i| {
-            queue_create_infos.append(.{
+            queue_create_infos.append(ctx.allocator, .{
                 .queue_family_index = unique_queue_families[i],
                 .queue_count = 1,
                 .p_queue_priorities = @ptrCast(&queue_priority),
             }) catch {};
         }
 
-        const queue_create_info = try queue_create_infos.toOwnedSlice();
+        const queue_create_info = try queue_create_infos.toOwnedSlice(ctx.allocator);
 
         const physical_device_features = vk.PhysicalDeviceFeatures{
-            .sampler_anisotropy = vk.TRUE,
+            .sampler_anisotropy = .true,
         };
 
         const supported_layers = try extension.get_supported_layers(ctx, layers);
         const supported_extensions = try extension.get_supported_device_extensions(ctx, physical_device.device, extensions);
 
         const dynamic_rendering_feature = vk.PhysicalDeviceDynamicRenderingFeatures {
-            .dynamic_rendering = vk.TRUE,
+            .dynamic_rendering = .true,
         };
         
         const create_info = vk.DeviceCreateInfo{

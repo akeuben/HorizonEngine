@@ -3,7 +3,7 @@
     # nativeBuildInputs is usually what you want -- tools you need to run
     buildInputs = with pkgs; [ 
         # Build tools
-        zig
+        zig_0_15
         cmake
         dotnet-sdk_8
 

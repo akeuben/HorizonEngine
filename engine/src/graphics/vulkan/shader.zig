@@ -175,7 +175,7 @@ pub const VulkanPipeline = struct {
 
         const input_assembly = vk.PipelineInputAssemblyStateCreateInfo{
             .topology = .triangle_list,
-            .primitive_restart_enable = vk.FALSE,
+            .primitive_restart_enable = .false,
         };
 
         const viewport_state = vk.PipelineViewportStateCreateInfo{
@@ -184,12 +184,12 @@ pub const VulkanPipeline = struct {
         };
 
         const rasterizer = vk.PipelineRasterizationStateCreateInfo{
-            .depth_clamp_enable = vk.FALSE,
-            .rasterizer_discard_enable = vk.FALSE,
+            .depth_clamp_enable = .false,
+            .rasterizer_discard_enable = .false,
             .polygon_mode = .fill,
             .cull_mode = .{ .back_bit = true },
             .front_face = .counter_clockwise,
-            .depth_bias_enable = vk.FALSE,
+            .depth_bias_enable = .false,
             .depth_bias_constant_factor = 0.0,
             .depth_bias_clamp = 0.0,
             .depth_bias_slope_factor = 0.0,
@@ -197,16 +197,16 @@ pub const VulkanPipeline = struct {
         };
 
         const multisampling = vk.PipelineMultisampleStateCreateInfo{
-            .sample_shading_enable = vk.FALSE,
+            .sample_shading_enable = .false,
             .rasterization_samples = .{ .@"1_bit" = true },
             .min_sample_shading = 1.0,
             .p_sample_mask = null,
-            .alpha_to_coverage_enable = vk.FALSE,
-            .alpha_to_one_enable = vk.FALSE,
+            .alpha_to_coverage_enable = .false,
+            .alpha_to_one_enable = .false,
         };
 
         const color_blend_attachement = vk.PipelineColorBlendAttachmentState{
-            .blend_enable = vk.TRUE,
+            .blend_enable = .true,
             .src_color_blend_factor = .src_alpha,
             .dst_color_blend_factor = .one_minus_src_alpha,
             .color_blend_op = .add,
@@ -222,7 +222,7 @@ pub const VulkanPipeline = struct {
         };
 
         const color_blending = vk.PipelineColorBlendStateCreateInfo{
-            .logic_op_enable = vk.FALSE,
+            .logic_op_enable = .false,
             .logic_op = .copy,
             .attachment_count = 1,
             .p_attachments = @ptrCast(&color_blend_attachement),
@@ -249,13 +249,13 @@ pub const VulkanPipeline = struct {
         };
 
         const depth_stencil = vk.PipelineDepthStencilStateCreateInfo{
-            .depth_test_enable = vk.TRUE,
-            .depth_write_enable = vk.TRUE,
+            .depth_test_enable = .true,
+            .depth_write_enable = .true,
             .depth_compare_op = .less,
             .min_depth_bounds = 0.0,
             .max_depth_bounds = 1.0,
-            .stencil_test_enable = vk.FALSE,
-            .depth_bounds_test_enable = vk.FALSE,
+            .stencil_test_enable = .false,
+            .depth_bounds_test_enable = .false,
             .front = undefined,
             .back = undefined,
         };

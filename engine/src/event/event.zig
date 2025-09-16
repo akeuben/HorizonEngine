@@ -36,6 +36,7 @@ pub fn init_handler_custom(comptime T: anytype, comptime E: anytype, handler: *c
 }
 
 pub const EventNode = struct {
+    allocator: std.mem.Allocator,
     custom_parameter: ?*anyopaque,
     children: std.ArrayList(*const EventNode),
     parent: ?*const EventNode,
@@ -45,8 +46,9 @@ pub const EventNode = struct {
         const handlers_copied = allocator.alloc(EventHandler, handlers.len) catch unreachable;
         @memcpy(handlers_copied, handlers);
         const self = EventNode{
+            .allocator = allocator,
             .custom_parameter = custom_parameter,
-            .children = std.ArrayList(*const EventNode).init(allocator),
+            .children = std.ArrayList(*const EventNode).initCapacity(allocator, 0) catch unreachable,
             .handlers = handlers_copied,
             .parent = null,
         };
@@ -55,7 +57,7 @@ pub const EventNode = struct {
     }
     
     pub fn add_child(self: *EventNode, child: *EventNode) void {
-        self.children.append(child) catch unreachable;
+        self.children.append(self.allocator, child) catch unreachable;
         child.parent = self;
     }
 

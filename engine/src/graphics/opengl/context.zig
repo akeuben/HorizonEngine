@@ -9,7 +9,7 @@ const Context = @import("../context.zig").Context;
 const ContextCreationOptions = @import("../context.zig").ContextCreationOptions;
 const event = @import("../../event/event.zig");
 
-fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.C) void {
+fn gl_error_callback(_: gl.GLenum, _: gl.GLenum, id: gl.GLuint, severity: gl.GLenum, _: gl.GLsizei, message: [*:0]const u8, _: ?*anyopaque) callconv(.c) void {
     log.debug("A GL error occurred.", .{});
     return switch (severity) {
         gl.DEBUG_SEVERITY_HIGH => log.err("GL {}: {s}", .{ id, message }),

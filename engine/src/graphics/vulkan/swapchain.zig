@@ -213,7 +213,7 @@ pub const Swapchain = struct {
                 .opaque_bit_khr = true,
             },
             .present_mode = present_mode,
-            .clipped = vk.TRUE,
+            .clipped = .true,
             .old_swapchain = self.swapchain,
         };
 
@@ -258,7 +258,7 @@ pub const Swapchain = struct {
     }
 
     pub fn acquire_image(self: *Swapchain) AcquireImageError!void {
-        const r = self.ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fences[self.current_frame]), vk.TRUE, std.math.maxInt(u64)) catch {
+        const r = self.ctx.logical_device.device.waitForFences(1, @ptrCast(&self.in_flight_fences[self.current_frame]), .true, std.math.maxInt(u64)) catch {
             log.err("Failed to wait for previous frame to finish!", .{});
             return undefined;
         };

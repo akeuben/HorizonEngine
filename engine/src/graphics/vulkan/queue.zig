@@ -23,7 +23,7 @@ pub fn find_queue_families(ctx: *const context.VulkanContext, physical_device: v
             queue_family_indices.graphics_family = @intCast(i);
         }
 
-        if (try ctx.instance.instance.getPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(i), ctx.surface) == vk.TRUE) {
+        if (try ctx.instance.instance.getPhysicalDeviceSurfaceSupportKHR(physical_device, @intCast(i), ctx.surface) == .true) {
             queue_family_indices.present_family = @intCast(i);
         }
 

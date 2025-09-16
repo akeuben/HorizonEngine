@@ -1,10 +1,10 @@
 const std = @import("std");
 
-pub fn build_stb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
-    var stb = b.addStaticLibrary(.{
-        .name = "stb",
+pub fn build_stb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+    var stb = b.addModule("stb", .{
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     const c_source_dir = b.addWriteFiles();
     const c_source = c_source_dir.add("stb_impl.c", 
@@ -13,7 +13,6 @@ pub fn build_stb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     );
     stb.addIncludePath(b.path("vendor/stb"));
     stb.addCSourceFile(.{ .file = c_source });
-    stb.linkLibC();
 
     return stb;
 }
