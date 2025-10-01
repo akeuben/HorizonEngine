@@ -16,9 +16,9 @@ const c = @cImport({
     @cInclude("X11/Xcursor/Xcursor.h");
     @cInclude("X11/extensions/Xrandr.h");
     @cInclude("xkbcommon/xkbcommon.h");
-    @cInclude("GL/glx.h");
-    @cInclude("GL/gl.h");
 });
+
+const c_glx = @import("c/glx.zig");
 
 const X = struct {
     XOpenDisplay: *const @TypeOf(c.XOpenDisplay),
@@ -51,27 +51,33 @@ const X = struct {
 };
 
 const GLX = struct {
-    glXChooseFBConfig: *const @TypeOf(c.glXChooseFBConfig),
-    glXGetVisualFromFBConfig: *const @TypeOf(c.glXGetVisualFromFBConfig),
-    glXCreateNewContext: *const @TypeOf(c.glXCreateNewContext),
-    glXMakeContextCurrent: *const @TypeOf(c.glXMakeContextCurrent),
-    glXMakeCurrent: *const @TypeOf(c.glXMakeCurrent),
-    glXSwapBuffers: *const @TypeOf(c.glXSwapBuffers),
-    glXDestroyContext: *const @TypeOf(c.glXDestroyContext),
-    glXGetProcAddress: *const @TypeOf(c.glXGetProcAddress),
-    glXGetProcAddressARB: *const @TypeOf(c.glXGetProcAddressARB),
-    glXQueryExtensionsString: *const @TypeOf(c.glXQueryExtensionsString),
+    glXChooseFBConfig: *const @TypeOf(c_glx.glXChooseFBConfig),
+    glXGetVisualFromFBConfig: *const @TypeOf(c_glx.glXGetVisualFromFBConfig),
+    glXMakeCurrent: *const @TypeOf(c_glx.glXMakeCurrent),
+    glXSwapBuffers: *const @TypeOf(c_glx.glXSwapBuffers),
+    glXGetProcAddress: *const @TypeOf(c_glx.glXGetProcAddress),
+    glXGetProcAddressARB: *const @TypeOf(c_glx.glXGetProcAddressARB),
     
     pub fn load() !GLX {
         var glxlib: GLX = undefined;
 
-        var lib = try std.DynLib.open("libGLX.so.0");
+        std.log.debug("Trying to open libGL.so", .{});
+
+        var lib = std.DynLib.open("libGL.so") catch {
+            log.fatal("Failed to find libGL.so", .{});
+        };
+
+        std.log.debug("Opened libGL.so", .{});
 
         inline for(@typeInfo(GLX).@"struct".fields) |field| {
+            std.log.debug("Attempting to open {s}", .{field.name});
             @field(glxlib, field.name) = lib.lookup(field.type, field.name) orelse {
                 log.fatal("Failed to load {s} dynamically", .{field.name});
             };
+            std.log.debug("Loaded {s}", .{field.name});
         }
+
+        std.log.debug("Done loading GLX", .{});
 
         return glxlib;
     }
@@ -208,7 +214,7 @@ pub const X11Window = struct {
     swa: c.XSetWindowAttributes,
     gwa: c.XWindowAttributes,
     native: c.Window,
-    gl_context: c.GLXContext,
+    gl_context: c_glx.GLXContext,
     window_attributes: c.XWindowAttributes,
     pending_exit: bool,
     node: event.EventNode,
@@ -222,7 +228,9 @@ pub const X11Window = struct {
         glx = GLX.load() catch {
             log.fatal("Failed to load GLX libraries. Make sure they exist in $LD_LIBRARY_PATH", .{});
         };
+        log.debug("Calling XOpenDisplay", .{});
         const d = x.XOpenDisplay(null);
+        log.debug("Called XOpenDisplay", .{});
 
         if(d == null) {
             log.fatal("Failed to open default X display", .{});
@@ -231,6 +239,8 @@ pub const X11Window = struct {
         display = d.?;
 
         root = c.DefaultRootWindow(display);
+
+        log.debug("Initialized X11", .{});
 
     }
 
@@ -255,35 +265,35 @@ pub const X11Window = struct {
 
         self.context = context;
 
-        var fbc: [*c]c.GLXFBConfig = undefined;
+        var fbc: [*c]c_glx.GLXFBConfig = undefined;
 
         var screen: c_int = undefined;
         var depth: c_int = undefined;
         var visual: [*c]c.Visual = undefined;
 
         if(context.* == .OPEN_GL) {
-            var att = [_]c.GLint {
-                c.GLX_X_RENDERABLE, 1,
-                c.GLX_DRAWABLE_TYPE, c.GLX_WINDOW_BIT,
-                c.GLX_RENDER_TYPE, c.GLX_RGBA_BIT,
-                c.GLX_X_VISUAL_TYPE, c.GLX_TRUE_COLOR,
-                c.GLX_RED_SIZE, 8,
-                c.GLX_GREEN_SIZE, 8,
-                c.GLX_BLUE_SIZE, 8,
-                c.GLX_DEPTH_SIZE, 24,
-                c.GLX_DOUBLEBUFFER, c.True,
-                c.None,
+            var att = [_]c_glx.GLint {
+                c_glx.GLX_X_RENDERABLE, 1,
+                c_glx.GLX_DRAWABLE_TYPE, c_glx.GLX_WINDOW_BIT,
+                c_glx.GLX_RENDER_TYPE, c_glx.GLX_RGBA_BIT,
+                c_glx.GLX_X_VISUAL_TYPE, c_glx.GLX_TRUE_COLOR,
+                c_glx.GLX_RED_SIZE, 8,
+                c_glx.GLX_GREEN_SIZE, 8,
+                c_glx.GLX_BLUE_SIZE, 8,
+                c_glx.GLX_DEPTH_SIZE, 24,
+                c_glx.GLX_DOUBLEBUFFER, c_glx.True,
+                c_glx.None,
             };
 
             // TODO, this only needs to be done for a gl context
             var count: c_int = 0;
-            fbc = glx.glXChooseFBConfig(display, c.DefaultScreen(display), @ptrCast(&att), &count);
+            fbc = glx.glXChooseFBConfig(@ptrCast(display), c.DefaultScreen(display), @ptrCast(&att), &count);
             if(count == 0) {
                 log.fatal("No valid frame buffer config found", .{});
             }
-            self.vi = glx.glXGetVisualFromFBConfig(display, fbc[0]) orelse {
+            self.vi = @ptrCast(glx.glXGetVisualFromFBConfig(@ptrCast(display), fbc[0]) orelse {
                 log.fatal("Failed to get visual for window", .{});
-            };
+            });
 
             screen = self.vi.screen;
             depth = self.vi.depth;
@@ -304,23 +314,23 @@ pub const X11Window = struct {
         _ = x.XMapWindow(display, self.native);
         
         if(context.* == .OPEN_GL) {
-            const glXCreateContextAttribsARB: c.PFNGLXCREATECONTEXTATTRIBSARBPROC = @ptrCast(glx.glXGetProcAddress("glXCreateContextAttribsARB"));
+            const glXCreateContextAttribsARB: c_glx.PFNGLXCREATECONTEXTATTRIBSARBPROC = @ptrCast(glx.glXGetProcAddress("glXCreateContextAttribsARB"));
 
             const context_attribs = [_]c_int {
-                c.GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-                c.GLX_CONTEXT_MINOR_VERSION_ARB, 6,
-                c.GLX_CONTEXT_PROFILE_MASK_ARB, c.GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-                c.None,
+                c_glx.GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+                c_glx.GLX_CONTEXT_MINOR_VERSION_ARB, 6,
+                c_glx.GLX_CONTEXT_PROFILE_MASK_ARB, c_glx.GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+                c_glx.None,
             };
 
             _ = x.XFlush(display);
 
-            self.gl_context = glXCreateContextAttribsARB.?(display, fbc[0], null, c.True, @ptrCast(&context_attribs));
+            self.gl_context = glXCreateContextAttribsARB.?(@ptrCast(display), fbc[0], null, c.True, @ptrCast(&context_attribs));
             if(self.gl_context == null) {
                 log.fatal("Failed to create gl context with glx", .{});
             }
 
-            _ = glx.glXMakeCurrent(display, self.native, self.gl_context);
+            _ = glx.glXMakeCurrent(@ptrCast(display), self.native, self.gl_context);
 
             log.debug("Made context current!", .{});
         }
@@ -366,8 +376,7 @@ pub const X11Window = struct {
     pub fn set_current_context(self: X11Window, context: Context) void {
         switch(context) {
             .OPEN_GL => {
-                _ = self;
-                //_ = glx.glXMakeCurrent(display, self.native, self.gl_context);
+                _ = glx.glXMakeCurrent(@ptrCast(display), self.native, self.gl_context);
             },
             else => {},
         }
@@ -402,7 +411,7 @@ pub const X11Window = struct {
     pub fn swap(self: *X11Window, ctx: *const Context) void {
         switch(ctx.*) {
             .OPEN_GL => {
-                glx.glXSwapBuffers(display, self.native);
+                glx.glXSwapBuffers(@ptrCast(display), self.native);
             },
             .VULKAN => {
                 ctx.VULKAN.swapchain.swap(&Window{ .linux = self });

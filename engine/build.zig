@@ -47,6 +47,13 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     lib.addIncludePath(vendor.vma.get_include_path(b));
     lib.addIncludePath(vendor.stb.get_include_path(b));
 
+    var env = std.process.getEnvMap(b.allocator) catch unreachable;
+    defer env.deinit();
+
+    const vulkan_include = std.Build.LazyPath{.cwd_relative = b.pathJoin(&.{env.get("VULKAN_HEADERS").?, "include"})};
+
+    lib.addSystemIncludePath(vulkan_include);
+
     // Link Zig Libraries
 
     // Link Options

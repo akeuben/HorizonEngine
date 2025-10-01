@@ -7,6 +7,7 @@ const vma = @cImport({
     @cDefine("VMA_STATIC_VULKAN_FUNCTIONS", "0");
     @cDefine("VMA_DYNAMIC_VULKAN_FUNCTIONS", "1");
     @cDefine("VMA_VULKAN_VERSION", "1000000");
+    @cInclude("vulkan/vulkan.h");
     @cInclude("vk_mem_alloc.h");
 });
 

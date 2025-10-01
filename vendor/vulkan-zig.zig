@@ -5,7 +5,7 @@ pub fn build_vulkan_zig(b: *std.Build) *std.Build.Module {
     defer env.deinit();
 
     const vkzig_dep = b.dependency("vulkan", .{
-        .registry = @as([]const u8, b.pathFromRoot(env.get("VULKAN_REGISTRY").?)),
+        .registry = @as([]const u8, b.pathFromRoot(b.pathJoin(&.{env.get("VULKAN_HEADERS").?, "share/vulkan/registry/vk.xml"}))),
     });
     return vkzig_dep.module("vulkan-zig");
 }

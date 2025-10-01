@@ -31,8 +31,7 @@
         libGL
     ];
 
-    VULKAN_REGISTRY = "${pkgs.vulkan-headers}/share/vulkan/registry/vk.xml";
-    WL_PROTOCOL = "${pkgs.wayland-protocols}/share/wayland-protocols";
+    VULKAN_HEADERS = "${pkgs.vulkan-headers}/";
     shellHook = let 
         runtimeLibraries = with pkgs; [
         wayland

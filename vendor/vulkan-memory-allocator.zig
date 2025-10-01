@@ -1,6 +1,8 @@
 const std = @import("std");
 
 pub fn build_vma(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+    var env = std.process.getEnvMap(b.allocator) catch unreachable;
+    defer env.deinit();
     var vma = b.addModule("vma", .{
         .target = target,
         .optimize = optimize,
@@ -12,13 +14,11 @@ pub fn build_vma(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
         \\#define VMA_STATIC_VULKAN_FUNCTIONS 0
         \\#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
         \\#define VMA_VULKAN_VERSION 1000000
+        \\#include <vulkan/vulkan.h>
         \\#include <vk_mem_alloc.h>
     );
-    vma.linkSystemLibrary("vulkan", .{
-        .preferred_link_mode = .dynamic,
-        .needed = true,
-    });
     vma.addIncludePath(b.path("vendor/VulkanMemoryAllocator/include"));
+    vma.addIncludePath(std.Build.LazyPath{.cwd_relative = b.pathJoin(&.{env.get("VULKAN_HEADERS").?, "include"})});
     vma.addCSourceFile(.{ .file = cpp_source });
 
     return vma;

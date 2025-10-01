@@ -2,7 +2,10 @@ const std = @import("std");
 const runtime = @import("runtime/build.zig");
 
 pub fn build(b: *std.Build) !void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.resolveTargetQuery(.{
+        .abi = .gnu, .cpu_arch = .x86_64, .os_tag = .linux,
+        .dynamic_linker = .none
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     const runtime_obj = try runtime.build_runtime(b, target, optimize);
