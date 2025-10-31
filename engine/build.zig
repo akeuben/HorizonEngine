@@ -13,12 +13,15 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     // Dependencies
     const zm = b.dependency("zm", .{});
     const vma = vendor.vma.build_vma(b, target, optimize);
-    const wayland = vendor.wayland.build_wayland(b);
     const vulkan_zig = vendor.vulkan_zig.build_vulkan_zig(b);
     const shaderc = vendor.shaderc.build_shaderc(b, target, optimize);
     const zig_opengl = vendor.zig_opengl.build_zig_opengl(b, target, optimize, .{
         .gl_version = GL_VERSION,
         .gl_extensions = GL_EXTENSIONS,
+    });
+    const vulkan = b.dependency("vulkan_zig", .{
+        .target = target,
+        .optimize = optimize,
     });
     const stb = vendor.stb.build_stb(b, target, optimize);
 
@@ -34,7 +37,6 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
             .{ .name = "shaderc", .module =  shaderc },
             .{ .name = "vma", .module =  vma },
             .{ .name = "stb", .module =  stb },
-            .{ .name = "wayland", .module =  wayland },
         },
     });
 
@@ -45,19 +47,17 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
         lib.linkLibrary(x11_headers.artifact("X11"));
     }
 
+    if(b.lazyDependency("wayland_zig", .{
+        .target = target,
+        .optimize = optimize,
+    })) |x11_headers| {
+        lib.linkLibrary(x11_headers.artifact("wayland"));
+    }
+
+    lib.linkLibrary(vulkan.artifact("vulkan"));
     // Link C Libraries
     lib.addIncludePath(vendor.vma.get_include_path(b));
     lib.addIncludePath(vendor.stb.get_include_path(b));
-
-    var env = std.process.getEnvMap(b.allocator) catch unreachable;
-    defer env.deinit();
-
-    const vulkan_include = std.Build.LazyPath{.cwd_relative = b.pathJoin(&.{env.get("VULKAN_HEADERS").?, "include"})};
-
-    const wayland_include = std.Build.LazyPath{.cwd_relative = b.pathJoin(&.{env.get("WAYLAND_HEADERS").?, "include"})};
-
-    lib.addSystemIncludePath(vulkan_include);
-    lib.addSystemIncludePath(wayland_include);
 
     // Link Zig Libraries
 

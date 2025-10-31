@@ -7,3 +7,6 @@
 [submodule "vendor/stb"]
 	path = vendor/stb
 	url = https://github.com/nothings/stb
+[submodule "vendor/Vulkan-Docs"]
+	path = vendor/Vulkan-Docs
+	url = https://github.com/KhronosGroup/Vulkan-Docs

@@ -4,24 +4,13 @@
     buildInputs = with pkgs; [ 
         # Build tools
         zig_0_15
-        cmake
         dotnet-sdk_8
 
         # Vulkan
-        vulkan-tools 
-        vulkan-loader 
-        vulkan-headers 
-        vulkan-validation-layers 
-        spirv-tools 
         shaderc 
-
-        vulkan-validation-layers
 
         # Linux Rendering libraries
         wayland
-        wayland-protocols
-        pkg-config
-        wayland-scanner
         libxkbcommon
         xorg.libX11
         xorg.libXcursor
@@ -32,8 +21,6 @@
         libGL
     ];
 
-    VULKAN_HEADERS = "${pkgs.vulkan-headers}/";
-    WAYLAND_LIB = "${pkgs.wayland}/";
     shellHook = let 
         runtimeLibraries = with pkgs; [
         wayland
@@ -44,8 +31,6 @@
         xorg.libXrandr
         xorg.libXi
         xorg.libXinerama
-        wayland-scanner
-        wayland-protocols
         libGL
         ];
         

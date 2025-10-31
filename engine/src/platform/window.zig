@@ -14,7 +14,7 @@ const event = @import("../event/event.zig");
 
 var initialized = false;
 
-const LinuxWindow = WaylandWindow;
+const LinuxWindow = X11Window;
 
 /// A window that can be rendered to.
 pub const Window = union(enum) {
