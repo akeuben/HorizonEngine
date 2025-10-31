@@ -1,6 +1,7 @@
 const std = @import("std");
 const DesktopWindow = @import("desktop/window.zig").DesktopWindow;
-const X11Window = @import("linux/window.zig").X11Window;
+const X11Window = @import("linux/x11.zig").X11Window;
+const WaylandWindow = @import("linux/wayland.zig").WaylandWindow;
 const log = @import("../utils/log.zig");
 const Context = @import("../graphics/context.zig").Context;
 const VulkanExtension = @import("../graphics/vulkan/extension.zig").VulkanExtension;
@@ -13,7 +14,7 @@ const event = @import("../event/event.zig");
 
 var initialized = false;
 
-const LinuxWindow = X11Window;
+const LinuxWindow = WaylandWindow;
 
 /// A window that can be rendered to.
 pub const Window = union(enum) {

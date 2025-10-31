@@ -20,6 +20,7 @@
         # Linux Rendering libraries
         wayland
         wayland-protocols
+        pkg-config
         wayland-scanner
         libxkbcommon
         xorg.libX11
@@ -32,6 +33,7 @@
     ];
 
     VULKAN_HEADERS = "${pkgs.vulkan-headers}/";
+    WAYLAND_LIB = "${pkgs.wayland}/";
     shellHook = let 
         runtimeLibraries = with pkgs; [
         wayland
@@ -42,6 +44,8 @@
         xorg.libXrandr
         xorg.libXi
         xorg.libXinerama
+        wayland-scanner
+        wayland-protocols
         libGL
         ];
         

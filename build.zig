@@ -2,9 +2,14 @@ const std = @import("std");
 const runtime = @import("runtime/build.zig");
 
 pub fn build(b: *std.Build) !void {
+    const arch: std.Target.Cpu.Arch = .x86_64;
+    const tag: std.Target.Os.Tag = .linux;
+    const abi: std.Target.Abi = .gnu;
+    const os: std.Target.Os = .{ .tag = tag, .version_range = .default(arch, tag, abi) };
+    const cpu: std.Target.Cpu = .baseline(arch, os);
     const target = b.resolveTargetQuery(.{
         .abi = .gnu, .cpu_arch = .x86_64, .os_tag = .linux,
-        .dynamic_linker = .none
+        .dynamic_linker = .standard(cpu, os, abi),
     });
     const optimize = b.standardOptimizeOption(.{});
 
