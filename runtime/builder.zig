@@ -1,5 +1,5 @@
 const std = @import("std");
-const engine = @import("../engine/build.zig");
+const engine = @import("../engine/builder.zig");
 
 pub fn build_runtime(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Step.Compile {
     const engine_obj = engine.build_engine(b, target, optimize);

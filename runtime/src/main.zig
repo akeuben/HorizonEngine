@@ -76,6 +76,20 @@ const UniformBufferObject = struct {
 const use_debug = true;
 
 pub fn main() !void {
+    try engine.data.registry.init(&std.heap.page_allocator);
+    const reg = engine.data.registry.getRegistry(.{ .namespace = "engine", .id = "test" }).?;
+
+    
+    var list = try reg.list();
+    while(list.next()) |item| {
+        std.log.debug("File exists: {f}", .{item.*});
+    }
+    const myThing = reg.get(.{ .namespace = "myapp", .id = "a" }, std.json.Value);
+
+    std.log.debug("My Thing: {s}", .{myThing.?.object.get("value").?.string});
+}
+
+pub fn main_old() !void {
     log.set_level(.DEBUG);
 
     var val: u32 = 5129;

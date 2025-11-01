@@ -1,9 +1,0 @@
-{
-    "name": "Example Mod",
-    "version": "0.0.1",
-    "author": "AKeuben",
-    "compatability": {
-        "depends_on": [],
-        "incompatible_with": [],
-    }
-}

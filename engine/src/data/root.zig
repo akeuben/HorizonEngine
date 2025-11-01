@@ -3,3 +3,4 @@ pub const DataError = error {
 };
 
 pub const stb = @import("stb.zig");
+pub const registry = @import("registry.zig");

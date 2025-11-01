@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("runtime/build.zig");
+const runtime = @import("runtime/builder.zig");
 
 pub fn build(b: *std.Build) !void {
     const arch: std.Target.Cpu.Arch = .x86_64;
