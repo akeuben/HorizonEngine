@@ -10,11 +10,11 @@ pub const PhysicalDevice = struct {
     device: vk.PhysicalDevice,
 
     pub fn init(ctx: *const context.VulkanContext, device_extensions: []extension.VulkanExtension) PhysicalDevice {
-        const devices = ctx.instance.instance.enumeratePhysicalDevicesAlloc(std.heap.page_allocator) catch {
+        const devices = ctx.instance.instance.enumeratePhysicalDevicesAlloc(ctx.allocator) catch {
             log.fatal("Failed to enumerate physical devices", .{});
             std.process.exit(1);
         };
-        defer std.heap.page_allocator.free(devices);
+        defer ctx.allocator.free(devices);
 
         var highest_score: u32 = 0;
         var highest_device: vk.PhysicalDevice = vk.PhysicalDevice.null_handle;
@@ -72,7 +72,7 @@ pub const PhysicalDevice = struct {
             log.warn("Device {s} does not support sampler anisotropy. Assigning a score of 0", .{properties.device_name});
         }
 
-        const swapchain_support = swapchain.query_swapchain_support(ctx, device, ctx.surface, std.heap.page_allocator) catch {
+        const swapchain_support = swapchain.query_swapchain_support(ctx, device, ctx.surface, ctx.allocator) catch {
             log.warn("Failed to query swapchain support for device {s}. Assigning a score of 0", .{properties.device_name});
             return 0;
         };
@@ -120,7 +120,7 @@ pub const LogicalDevice = struct {
 
         const queue_priority: f32 = 1.0;
 
-        var queue_create_infos = try std.ArrayList(vk.DeviceQueueCreateInfo).initCapacity(std.heap.page_allocator, unique_queue_family_count);
+        var queue_create_infos = try std.ArrayList(vk.DeviceQueueCreateInfo).initCapacity(ctx.allocator, unique_queue_family_count);
         defer queue_create_infos.deinit(ctx.allocator);
 
         for (0..unique_queue_family_count) |i| {

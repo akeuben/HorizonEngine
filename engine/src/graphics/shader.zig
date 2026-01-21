@@ -17,17 +17,17 @@ pub const ShaderError = error{
 };
 
 // TODO: Replace with an asset manager
-fn read_shader_file(comptime path: []const u8) ![]const u8 {
+fn read_shader_file(allocator: std.mem.Allocator, comptime path: []const u8) ![]const u8 {
     var file = std.fs.cwd().openFile("assets/" ++ path, .{}) catch {
-        const p = try std.fs.cwd().realpathAlloc(std.heap.page_allocator, ".");
-        defer std.heap.page_allocator.free(p);
+        const p = try std.fs.cwd().realpathAlloc(allocator, ".");
+        defer allocator.free(p);
         
         log.err("Failed to open shader: {s}", .{p});
         return undefined;
     };
     defer file.close();
 
-    const data = try file.readToEndAlloc(std.heap.page_allocator, 65536);
+    const data = try file.readToEndAlloc(allocator, 65536);
     log.debug("Loaded shader file of size: {}", .{data.len});
     return data;
 }
@@ -45,8 +45,8 @@ pub const VertexShader = union(context.API) {
     /// **Returns** The created shader
     /// **Error** `CompilationError` the shader failed to compile.
     pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!VertexShader {
-        const shader_data = read_shader_file(name ++ ".vert") catch return ShaderError.CompilationError;
-        defer std.heap.page_allocator.free(shader_data);
+        const shader_data = read_shader_file(ctx.getAllocator(), name ++ ".vert") catch return ShaderError.CompilationError;
+        defer ctx.getAllocator().free(shader_data);
 
         return switch (ctx.*) {
             .OPEN_GL => VertexShader{
@@ -88,8 +88,8 @@ pub const FragmentShader = union(context.API) {
     /// **Returns** The created shader
     /// **Error** `CompilationError`: the shader failed to compile.
     pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!FragmentShader {
-        const shader_data = read_shader_file(name ++ ".frag") catch return ShaderError.CompilationError;
-        defer std.heap.page_allocator.free(shader_data);
+        const shader_data = read_shader_file(ctx.getAllocator(), name ++ ".frag") catch return ShaderError.CompilationError;
+        defer ctx.getAllocator().free(shader_data);
 
         return switch (ctx.*) {
             .OPEN_GL => FragmentShader{

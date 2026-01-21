@@ -60,6 +60,17 @@ pub const Context = union(API) {
         }
     }
 
+    pub fn getAllocator(self: *const Context) std.mem.Allocator {
+        return switch(self.*) {
+            .OPEN_GL => self.OPEN_GL.allocator,
+            .VULKAN => self.VULKAN.allocator,
+            inline else => {
+                log.not_implemented("Context::getAllocator", self.*);
+                return std.heap.page_allocator;
+            },
+        };
+    }
+
     /// Binds a context to a window. This is required to load the API, and as such,
     /// the api cannot be used until it is loaded.
     ///

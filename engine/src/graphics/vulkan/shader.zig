@@ -153,10 +153,10 @@ pub const VulkanPipeline = struct {
             .input_rate = .vertex,
         };
 
-        const attribute_descriptions = std.heap.page_allocator.alloc(vk.VertexInputAttributeDescription, layout.elements.len) catch {
+        const attribute_descriptions = ctx.allocator.alloc(vk.VertexInputAttributeDescription, layout.elements.len) catch {
             return ShaderError.LinkingError;
         };
-        defer std.heap.page_allocator.free(attribute_descriptions);
+        defer ctx.allocator.free(attribute_descriptions);
         for (layout.elements, 0..) |element, i| {
             attribute_descriptions[i] = vk.VertexInputAttributeDescription{
                 .binding = 0,

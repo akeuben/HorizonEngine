@@ -15,8 +15,8 @@ pub const QueueFamilyIndices = struct {
 pub fn find_queue_families(ctx: *const context.VulkanContext, physical_device: vk.PhysicalDevice) !QueueFamilyIndices {
     var queue_family_indices: QueueFamilyIndices = undefined;
 
-    const queue_families = try ctx.instance.instance.getPhysicalDeviceQueueFamilyPropertiesAlloc(physical_device, std.heap.page_allocator);
-    defer std.heap.page_allocator.free(queue_families);
+    const queue_families = try ctx.instance.instance.getPhysicalDeviceQueueFamilyPropertiesAlloc(physical_device, ctx.allocator);
+    defer ctx.allocator.free(queue_families);
 
     for (queue_families, 0..) |family, i| {
         if (family.queue_flags.graphics_bit) {

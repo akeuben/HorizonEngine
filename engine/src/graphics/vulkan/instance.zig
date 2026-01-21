@@ -23,10 +23,10 @@ pub const Instance = struct {
         };
 
         const supported_extensions = try extension.get_supported_instance_extensions(ctx, extensions);
-        defer std.heap.page_allocator.free(supported_extensions);
+        defer ctx.allocator.free(supported_extensions);
 
         const supported_layers = try extension.get_supported_layers(ctx, layers);
-        defer std.heap.page_allocator.free(supported_layers);
+        defer ctx.allocator.free(supported_layers);
 
         var create_info = vk.InstanceCreateInfo{
             .p_application_info = &app_info,

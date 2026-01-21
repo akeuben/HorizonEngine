@@ -75,8 +75,14 @@ const UniformBufferObject = struct {
 
 const use_debug = true;
 
-pub fn main() !void {
-    try engine.data.registry.init(&std.heap.page_allocator);
+pub fn main_old() !void {
+    var gpa = std.heap.DebugAllocator(.{}){};
+    var allocator = gpa.allocator();
+    defer if(gpa.detectLeaks()) {
+        log.fatal("Memory Leak detected.", .{});
+    };
+    
+    try engine.data.registry.init(&allocator);
     const reg = engine.data.registry.getRegistry(.{ .namespace = "engine", .id = "test" }).?;
 
     
@@ -89,26 +95,31 @@ pub fn main() !void {
     std.log.debug("My Thing: {s}", .{myThing.?.object.get("value").?.string});
 }
 
-pub fn main_old() !void {
+pub fn main() !void {
+    var gpa = std.heap.DebugAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer if(gpa.detectLeaks()) {
+        std.process.exit(1);
+    };
     log.set_level(.DEBUG);
 
     var val: u32 = 5129;
 
-    var root_event_node = EventNode.init(std.heap.page_allocator, &val, &.{
+    var root_event_node = EventNode.init(allocator, &val, &.{
     });
 
-    const args = try std.process.argsAlloc(std.heap.page_allocator);
-    defer std.process.argsFree(std.heap.page_allocator, args);
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
     var context: graphics.Context = undefined;
     if (args.len != 2) {
-        context = graphics.Context.init_none(std.heap.page_allocator, .{ .use_debug = use_debug });
+        context = graphics.Context.init_none(allocator, .{ .use_debug = use_debug });
     } else if (std.mem.eql(u8, "vk", args[1])) {
-        context = graphics.Context.init_vulkan(std.heap.page_allocator, .{ .use_debug = use_debug });
+        context = graphics.Context.init_vulkan(allocator, .{ .use_debug = use_debug });
     } else if (std.mem.eql(u8, "gl", args[1])) {
-        context = graphics.Context.init_open_gl(std.heap.page_allocator, .{ .use_debug = use_debug });
+        context = graphics.Context.init_open_gl(allocator, .{ .use_debug = use_debug });
     } else {
-        context = graphics.Context.init_none(std.heap.page_allocator, .{ .use_debug = use_debug });
+        context = graphics.Context.init_none(allocator, .{ .use_debug = use_debug });
     }
     defer context.deinit();
 
@@ -117,7 +128,7 @@ pub fn main_old() !void {
         root_event_node.add_child(context_node.?);
     }
 
-    var window = Window.init(&context, std.heap.page_allocator);
+    var window = Window.init(&context, allocator);
     context.load(&window);
 
     root_event_node.add_child(window.get_event_node());

@@ -15,9 +15,9 @@ pub const VulkanLayer = struct {
 };
 
 pub fn get_supported_instance_extensions(ctx: *const context.VulkanContext, requested: []const VulkanExtension) ![]const ?[*:0]const u8 {
-    const supported_extension_names = try ctx.vkb.enumerateInstanceExtensionPropertiesAlloc(null, std.heap.page_allocator);
+    const supported_extension_names = try ctx.vkb.enumerateInstanceExtensionPropertiesAlloc(null, ctx.allocator);
 
-    var supported_extensions = try std.heap.page_allocator.alloc([*:0]const u8, supported_extension_names.len);
+    var supported_extensions = try ctx.allocator.alloc([*:0]const u8, supported_extension_names.len);
 
     // Create new list of supported extensions
     var actual_extension_count: usize = 0;
@@ -44,13 +44,16 @@ pub fn get_supported_instance_extensions(ctx: *const context.VulkanContext, requ
             log.warn("  [X] Failed to find optional extension {s}", .{extension.name.?});
         }
     }
-    return supported_extensions[0..actual_extension_count];
+    const extensions = try ctx.allocator.alloc([*:0]const u8, actual_extension_count);
+    errdefer ctx.allocator.free(extensions);
+    @memcpy(extensions, supported_extensions.ptr);
+    return extensions;
 }
 
 pub fn get_supported_device_extensions(ctx: *const context.VulkanContext, physical_device: vk.PhysicalDevice, requested: []const VulkanExtension) ![]const ?[*:0]const u8 {
-    const supported_extension_names = try ctx.instance.instance.enumerateDeviceExtensionPropertiesAlloc(physical_device, null, std.heap.page_allocator);
+    const supported_extension_names = try ctx.instance.instance.enumerateDeviceExtensionPropertiesAlloc(physical_device, null, ctx.allocator);
 
-    var supported_extensions = try std.heap.page_allocator.alloc([*:0]const u8, supported_extension_names.len);
+    var supported_extensions = try ctx.allocator.alloc([*:0]const u8, supported_extension_names.len);
 
     // Create new list of supported extensions
     var actual_extension_count: usize = 0;
@@ -77,13 +80,17 @@ pub fn get_supported_device_extensions(ctx: *const context.VulkanContext, physic
             log.warn("  [X] Failed to find optional extension {s}", .{extension.name.?});
         }
     }
-    return supported_extensions[0..actual_extension_count];
+    const extensions = try ctx.allocator.alloc([*:0]const u8, actual_extension_count);
+    errdefer ctx.allocator.free(extensions);
+    @memcpy(extensions, supported_extensions.ptr);
+    return extensions;
 }
 
 pub fn get_supported_layers(ctx: *const context.VulkanContext, requested: []const VulkanLayer) ![]const ?[*:0]const u8 {
-    const supported_layer_names = try ctx.vkb.enumerateInstanceLayerPropertiesAlloc(std.heap.page_allocator);
+    const supported_layer_names = try ctx.vkb.enumerateInstanceLayerPropertiesAlloc(ctx.allocator);
 
-    var supported_layers = try std.heap.page_allocator.alloc([*:0]const u8, supported_layer_names.len);
+    var supported_layers = try ctx.allocator.alloc([*:0]const u8, supported_layer_names.len);
+    defer ctx.allocator.free(supported_layers);
 
     // Create new list of supported layers
     var actual_layer_count: usize = 0;
@@ -110,5 +117,8 @@ pub fn get_supported_layers(ctx: *const context.VulkanContext, requested: []cons
             log.warn("  [X] Failed to find optional layer {s}", .{layer.name.?});
         }
     }
-    return supported_layers[0..actual_layer_count];
+    const layers = try ctx.allocator.alloc([*:0]const u8, actual_layer_count);
+    errdefer ctx.allocator.free(layers);
+    @memcpy(layers, supported_layers.ptr);
+    return layers;
 }

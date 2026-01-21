@@ -168,7 +168,7 @@ pub const Swapchain = struct {
     }
 
     fn create_swapchain(self: *Swapchain, size: @Vector(2, i32)) !void {
-        const support = try query_swapchain_support(self.ctx, self.ctx.physical_device.device, self.ctx.surface, std.heap.page_allocator);
+        const support = try query_swapchain_support(self.ctx, self.ctx.physical_device.device, self.ctx.surface, self.ctx.allocator);
         defer support.deinit();
 
         const format = choose_swapchain_format(support.formats);
