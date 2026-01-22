@@ -15,6 +15,15 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
     const vma = vendor.vma.build_vma(b, target, optimize);
     const vulkan_zig = vendor.vulkan_zig.build_vulkan_zig(b);
     const shaderc = vendor.shaderc.build_shaderc(b, target, optimize);
+    const slang = b.dependency("slang_zig", .{
+        .target = target,
+        .optimize = optimize,
+        // Automatically log any slang diagnostics using `std.log` when providing
+        // null as the blob pointer (this is the default)
+        .log_diagnostics = .only_for_null,
+        // Only use release builds of slang
+        .debug_info = false,
+    });
     const zig_opengl = vendor.zig_opengl.build_zig_opengl(b, target, optimize, .{
         .gl_version = GL_VERSION,
         .gl_extensions = GL_EXTENSIONS,
@@ -37,6 +46,7 @@ pub fn build_engine(b: *std.Build, target: std.Build.ResolvedTarget, optimize: s
             .{ .name = "shaderc", .module =  shaderc },
             .{ .name = "vma", .module =  vma },
             .{ .name = "stb", .module =  stb },
+            .{ .name = "slang", .module = slang.module("slang") },
         },
     });
 
