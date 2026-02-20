@@ -98,9 +98,6 @@ pub fn main_old() !void {
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer if(gpa.detectLeaks()) {
-        std.process.exit(1);
-    };
     log.set_level(.DEBUG);
 
     var val: u32 = 5129;
@@ -111,17 +108,7 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var context: graphics.Context = undefined;
-    if (args.len != 2) {
-        context = graphics.Context.init_none(allocator, .{ .use_debug = use_debug });
-    } else if (std.mem.eql(u8, "vk", args[1])) {
-        context = graphics.Context.init_vulkan(allocator, .{ .use_debug = use_debug });
-    } else if (std.mem.eql(u8, "gl", args[1])) {
-        context = graphics.Context.init_open_gl(allocator, .{ .use_debug = use_debug });
-    } else {
-        context = graphics.Context.init_none(allocator, .{ .use_debug = use_debug });
-    }
-    defer context.deinit();
+    var context: graphics.Context = graphics.Context.init_vulkan(allocator, .{ .use_debug = use_debug });
 
     const context_node: ?*EventNode = context.get_event_node();
     if(context_node != null) {
@@ -152,11 +139,6 @@ pub fn main() !void {
     var cube_ibuffer = graphics.IndexBuffer.init(&context, cube_indices);
     defer cube_ibuffer.deinit();
 
-    const vs = try graphics.VertexShader.init(&context, "basic");
-    defer vs.deinit();
-    const fs = try graphics.FragmentShader.init(&context, "basic");
-    defer fs.deinit();
-
     const a45 = std.math.degreesToRadians(45);
     
     var mats: UniformBufferObject = .{
@@ -168,22 +150,15 @@ pub fn main() !void {
     var uniform = graphics.UniformBuffer.init(&context, UniformBufferObject, mats);
     defer uniform.deinit();
 
-    const bindingLayout = graphics.ShaderBindingLayout.init(&context, &.{
-        .{.point = 0, .binding_type = .UNIFORM_BUFFER, .stage = .VERTEX_SHADER},
-        .{.point = 1, .binding_type = .IMAGE_SAMPLER, .stage = .FRAGMENT_SHADER},
-    });
-    defer bindingLayout.deinit();
-
-    const bindings = bindingLayout.bind(&context, &.{
-        .{.element = &uniform, .point = 0},
-        .{.element = &sampler, .point = 1},
-    });
-    defer bindings.deinit();
-
-    const pipeline = try graphics.Pipeline.init(&context, &vs, &fs, &cube_vbuffer.get_layout(), &bindings);
+    const pipeline = try graphics.Pipeline.init(&context, "basic", &cube_vbuffer.get_layout());
     defer pipeline.deinit();
 
-    const cube = graphics.IndexRenderObject.init(&context, &pipeline, &cube_vbuffer, &cube_ibuffer, &bindings).object();
+    const ubo = pipeline.getLayout().create(&.{
+        .{.element = &uniform, .point = "matrices"},
+        .{.element = &sampler, .point = "texSampler"}
+    });
+
+    const cube = graphics.IndexRenderObject.init(&context, &pipeline, &cube_vbuffer, &cube_ibuffer, &ubo).object();
 
     var last_frame_time: f64 = @floatFromInt(std.time.nanoTimestamp());
 
@@ -195,9 +170,9 @@ pub fn main() !void {
         const t: f32 = @as(f32, @floatCast(current_frame_time - last_frame_time)) / 1E9;
         rot += -t * speed;
         //log.info("FPS: {d:.2}", .{1.0/t});
-        mats.proj = zm.Mat4f.perspective(std.math.degreesToRadians(70), @as(f32, @floatFromInt(window.get_size_pixels()[0])) / @as(f32, @floatFromInt(window.get_size_pixels()[1])), 0.1, 100).transpose();
-        mats.view = zm.Mat4f.lookAt(.{4.0 * std.math.cos(rot), 0.0, 4.0 * std.math.sin(rot)}, .{0, 0, 0}, .{0, 1, 0}).transpose();
-        mats.model = zm.Mat4f.rotation(.{1, 0, 0}, std.math.degreesToRadians(rot * 20)).transpose();
+        mats.proj = zm.Mat4f.perspective(std.math.degreesToRadians(70), @as(f32, @floatFromInt(window.get_size_pixels()[0])) / @as(f32, @floatFromInt(window.get_size_pixels()[1])), 0.1, 100);
+        mats.view = zm.Mat4f.lookAt(.{4.0 * std.math.cos(rot), 0.0, 4.0 * std.math.sin(rot)}, .{0, 0, 0}, .{0, 1, 0});
+        mats.model = zm.Mat4f.rotation(.{1, 0, 0}, std.math.degreesToRadians(rot * 20));
         uniform.set_data(UniformBufferObject, mats);
 
         window.start_frame();

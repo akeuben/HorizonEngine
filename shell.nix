@@ -32,6 +32,7 @@
         xorg.libXi
         xorg.libXinerama
         libGL
+        shader-slang
         ];
         
     in ''

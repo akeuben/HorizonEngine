@@ -53,13 +53,10 @@ pub const VertexRenderObject = union(context.API) {
     /// **Parameter** `vertices`: The list of vertices that will be drawn to the target.
     pub fn init(ctx: *const context.Context, pipeline: *const shader.Pipeline, vertices: *const buffer.VertexBuffer, bindings: *const shader.ShaderBindingSet) VertexRenderObject {
         return switch (ctx.*) {
-            .OPEN_GL => .{
-                .OPEN_GL = opengl.OpenGLVertexRenderObject.init(ctx.OPEN_GL, &pipeline.OPEN_GL, &vertices.OPEN_GL, &bindings.OPEN_GL),
-            },
             .VULKAN => .{
                 .VULKAN = vulkan.VulkanVertexRenderObject.init(ctx.VULKAN, &pipeline.VULKAN, &vertices.VULKAN, &bindings.VULKAN),
             },
-            .NONE => .{
+            else => .{
                 .NONE = log.not_implemented("VertexRenderObject::init", ctx.*),
             },
         };
@@ -71,7 +68,6 @@ pub const VertexRenderObject = union(context.API) {
     /// **Parameter** `target`: The target to render to.
     pub fn draw(self: *const VertexRenderObject, target: *const RenderTarget) void {
         switch (self.*) {
-            .OPEN_GL => self.OPEN_GL.draw(&target.OPEN_GL),
             .VULKAN => self.VULKAN.draw(&target.VULKAN),
             inline else => log.not_implemented("VertexRenderObject::draw", self.*),
         }
@@ -97,13 +93,10 @@ pub const IndexRenderObject = union(context.API) {
     /// **Parameter** `vertices`: The list of vertices that will be drawn to the target.
     pub fn init(ctx: *const context.Context, pipeline: *const shader.Pipeline, vertices: *const buffer.VertexBuffer, indices: *const buffer.IndexBuffer, bindings: *const shader.ShaderBindingSet) IndexRenderObject {
         return switch (ctx.*) {
-            .OPEN_GL => .{
-                .OPEN_GL = opengl.OpenGLIndexRenderObject.init(ctx.OPEN_GL, &pipeline.OPEN_GL, &vertices.OPEN_GL, &indices.OPEN_GL, &bindings.OPEN_GL),
-            },
             .VULKAN => .{
                 .VULKAN = vulkan.VulkanIndexRenderObject.init(ctx.VULKAN, &pipeline.VULKAN, &vertices.VULKAN, &indices.VULKAN, &bindings.VULKAN),
             },
-            .NONE => .{
+            else => .{
                 .NONE = log.not_implemented("IndexRenderObject::init", ctx.*),
             },
         };
@@ -115,9 +108,8 @@ pub const IndexRenderObject = union(context.API) {
     /// **Parameter** `target`: The target to render to.
     pub fn draw(self: *const IndexRenderObject, target: *const RenderTarget) void {
         switch (self.*) {
-            .OPEN_GL => self.OPEN_GL.draw(&target.OPEN_GL),
             .VULKAN => self.VULKAN.draw(&target.VULKAN),
-            .NONE => log.not_implemented("IndexRenderObject::draw", self.*),
+            else => log.not_implemented("IndexRenderObject::draw", self.*),
         }
     }
 

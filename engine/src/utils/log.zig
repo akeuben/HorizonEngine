@@ -62,7 +62,7 @@ pub inline fn fatal(comptime format: []const u8, args: anytype) void {
     stdout.writeAll("\n") catch {};
     print(.FATAL, format, args);
     stdout.writeAll("\n") catch {};
-    stdout.flush() catch {};
+    stdout.defaultFlush() catch {};
     @panic("A fatal exception occurred.");
 }
 

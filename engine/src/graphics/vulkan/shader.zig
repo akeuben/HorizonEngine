@@ -4,52 +4,29 @@ const log = @import("../../utils/log.zig");
 const ShaderError = @import("../shader.zig").ShaderError;
 const BufferLayout = @import("../type.zig").BufferLayout;
 const VulkanRenderTarget = @import("target.zig").VulkanRenderTarget;
+const ShaderBindingLayout = @import("../shader.zig").ShaderBindingLayout;
 const ShaderBindingLayoutElement = @import("../shader.zig").ShaderBindingLayoutElement;
+const ShaderBindingLayoutElementType = @import("../shader.zig").ShaderBindingLayoutElementType;
 const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
-const ShaderBindingType = @import("../shader.zig").ShaderBindingType;
-const ShaderStage = @import("../shader.zig").ShaderStage;
 const ShaderBindingElement = @import("../shader.zig").ShaderBindingElement;
 const std = @import("std");
 const types = @import("../type.zig");
 const MAX_FRAMES_IN_FLIGHT = @import("./swapchain.zig").MAX_FRAMES_IN_FLIGHT;
 const memory = @import("memory.zig");
 
-const shaderc = @import("shaderc");
+const Slang = @import("../slang.zig").SlangSession(.spirv, "spirv_1_5");
 
-var compiler: shaderc.Compiler = undefined;
-var initialized = false;
-
-pub const VulkanVertexShader = struct {
+pub const VulkanShader = struct {
     module: vk.ShaderModule,
     ctx: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, sourceCode: []const u8) ShaderError!VulkanVertexShader {
-        if(!initialized) {
-            compiler = shaderc.Compiler.initialize();
-            initialized = true;
-        }
-        const options = shaderc.CompileOptions.initialize();
-        defer options.release();
-        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
-        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
-        options.setVersion(shaderc.Env.Target.Vulkan, shaderc.Env.VulkanVersion.@"3");
-        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Vertex, "main", options) catch |e| {
-            log.err("Failed to compile vertex shader: {}", .{e});
-            return ShaderError.CompilationError;
-        };
-        if(result.getCompilationStatus() == .Success) {
-            log.debug("Compiled (1) vertex shader.", .{});
-        } else {
-            log.err("Failed to compile vertex shader: {s}", .{result.getErrorMessage()});
-            return ShaderError.CompilationError;
-        }
-        const data = result.getBytes();
+    pub fn init(ctx: *const context.VulkanContext, code: []const u8) ShaderError!VulkanShader {
         const create_info = vk.ShaderModuleCreateInfo{
-            .code_size = @intCast(data.len),
-            .p_code = @ptrCast(@alignCast(data.ptr)),
+            .code_size = @intCast(code.len),
+            .p_code = @ptrCast(@alignCast(code.ptr)),
         };
         const module = ctx.logical_device.device.createShaderModule(&create_info, null) catch {
-            log.err("Failed to initialize vulkan vertex shader", .{});
+            log.err("Failed to initialize vulkan shader", .{});
             return ShaderError.CompilationError;
         };
         return .{
@@ -57,50 +34,7 @@ pub const VulkanVertexShader = struct {
             .ctx = ctx,
         };
     }
-    pub fn deinit(self: VulkanVertexShader) void {
-        self.ctx.logical_device.device.destroyShaderModule(self.module, null);
-    }
-};
-
-pub const VulkanFragmentShader = struct {
-    module: vk.ShaderModule,
-    ctx: *const context.VulkanContext,
-
-    pub fn init(ctx: *const context.VulkanContext, sourceCode: []const u8) ShaderError!VulkanFragmentShader {
-        if(initialized) {
-            compiler = shaderc.Compiler.initialize();
-            initialized = true;
-        }
-        const options = shaderc.CompileOptions.initialize();
-        defer options.release();
-        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
-        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
-        options.setVersion(shaderc.Env.Target.Vulkan, shaderc.Env.VulkanVersion.@"3");
-        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Fragment, "main", options) catch |e| {
-            log.err("Failed to compile fragment shader: {}", .{e});
-            return ShaderError.CompilationError;
-        };
-        if(result.getCompilationStatus() == .Success) {
-            log.debug("Compiled (1) fragment shader.", .{});
-        } else {
-            log.err("Failed to compile fragment shader: {s}", .{result.getErrorMessage()});
-            return ShaderError.CompilationError;
-        }
-        const data = result.getBytes();
-        const create_info = vk.ShaderModuleCreateInfo{
-            .code_size = @intCast(data.len),
-            .p_code = @ptrCast(@alignCast(data.ptr)),
-        };
-        const module = ctx.logical_device.device.createShaderModule(&create_info, null) catch {
-            log.err("Failed to initialize vulkan fragment shader", .{});
-            return ShaderError.CompilationError;
-        };
-        return .{
-            .module = module,
-            .ctx = ctx,
-        };
-    }
-    pub fn deinit(self: VulkanFragmentShader) void {
+    pub fn deinit(self: VulkanShader) void {
         self.ctx.logical_device.device.destroyShaderModule(self.module, null);
     }
 };
@@ -124,9 +58,20 @@ fn shader_type_to_vulkan_type(shader_type: types.ShaderLayoutElementType) vk.For
 pub const VulkanPipeline = struct {
     layout: vk.PipelineLayout,
     pipeline: vk.Pipeline,
+    shader: Slang.Program,
+    bindingsLayout: VulkanShaderBindingLayout,
     context: *const context.VulkanContext,
 
-    pub fn init(ctx: *const context.VulkanContext, vertex_shader: VulkanVertexShader, fragment_shader: VulkanFragmentShader, layout: *const BufferLayout, bindings: *const VulkanShaderBindingSet) ShaderError!VulkanPipeline {
+    pub fn init(ctx: *const context.VulkanContext, source: [:0]const u8, layout: *const BufferLayout) ShaderError!VulkanPipeline {
+        const session = Slang.getSession() catch return ShaderError.ReadError;
+        const shader = session.compileProgram("shader", source, &.{"vertex", "fragment"}) catch return ShaderError.CompilationError;
+
+        const vertexSource = shader.component.getEntryPointCode(0, 0, null) catch return ShaderError.LinkingError;
+        const fragmentSource = shader.component.getEntryPointCode(1, 0, null) catch return ShaderError.LinkingError;
+
+        const vertex_shader = try VulkanShader.init(ctx, vertexSource.getBuffer());
+        const fragment_shader = try VulkanShader.init(ctx, fragmentSource.getBuffer());
+        
         const vertex_shader_stage_info = vk.PipelineShaderStageCreateInfo{
             .stage = .{ .vertex_bit = true, .fragment_bit = false },
             .module = vertex_shader.module,
@@ -138,6 +83,8 @@ pub const VulkanPipeline = struct {
             .module = fragment_shader.module,
             .p_name = "main",
         };
+
+        const bindingsLayout = createLayout(ctx, shader) catch return ShaderError.CompilationError;
 
         const shader_stages: []const vk.PipelineShaderStageCreateInfo = &.{ vertex_shader_stage_info, fragment_shader_stage_info };
         const dynamic_states: []const vk.DynamicState = &.{ .viewport, .scissor };
@@ -231,7 +178,7 @@ pub const VulkanPipeline = struct {
 
         const pipeline_layout = vk.PipelineLayoutCreateInfo{
             .set_layout_count = 1,
-            .p_set_layouts = @ptrCast(&bindings.layout),
+            .p_set_layouts = @ptrCast(&bindingsLayout.layout),
             .push_constant_range_count = 0,
             .p_push_constant_ranges = null,
         };
@@ -289,8 +236,44 @@ pub const VulkanPipeline = struct {
             .layout = vk_layout,
             .pipeline = pipeline,
             .context = ctx,
+            .shader = shader,
+            .bindingsLayout = bindingsLayout,
         };
     }
+
+    pub fn createLayout(ctx: *const context.VulkanContext, shader: Slang.Program) !VulkanShaderBindingLayout {
+
+        const layout = shader.component.getLayout(0, null) orelse unreachable;
+
+        var elements = std.ArrayList(ShaderBindingLayoutElement){};
+        defer elements.deinit(ctx.allocator);
+
+        const parameterCount: usize = @intCast(layout.getParameterCount());
+        for(0..parameterCount) |j| {
+            const parameter = layout.getParameterByIndex(@intCast(j));
+
+            const t = slang_type_to_shader_type(parameter.getType().getKind());
+
+            if(t == null) {
+                continue;
+            }
+
+            log.debug("Found bindable resource {s}", .{parameter.getName()});
+            
+            try elements.append(ctx.allocator, .{ 
+                .name = std.mem.span(parameter.getName()), 
+                .type = t.?,
+                .point = parameter.getBindingIndex(), 
+            });
+        }
+
+        return VulkanShaderBindingLayout.init(ctx, try elements.toOwnedSlice(ctx.allocator));
+    }
+
+    pub fn getLayout(self: VulkanPipeline) VulkanShaderBindingLayout {
+        return self.bindingsLayout;
+    }
+
     pub fn deinit(self: VulkanPipeline) void {
         self.context.logical_device.device.deviceWaitIdle() catch {};
         self.context.logical_device.device.destroyPipeline(self.pipeline, null);
@@ -298,22 +281,26 @@ pub const VulkanPipeline = struct {
     }
 };
 
-fn binding_type_to_vulkan_type(t: ShaderBindingType) vk.DescriptorType {
+fn slang_type_to_shader_type(t: @TypeOf(Slang._slang.TypeReflection.getKind(@ptrFromInt(10000)))) ?ShaderBindingLayoutElementType {
+    return switch (t) {
+        .constant_buffer => .UNIFORM_BUFFER,
+        .resource => .IMAGE_SAMPLER,
+        else => {
+            log.debug("Unhandled shader parameter type {}", .{t});
+            return null;
+        }
+    };
+}
+
+fn binding_type_to_vulkan_type(t: ShaderBindingLayoutElementType) vk.DescriptorType {
     return switch(t) {
         .UNIFORM_BUFFER => vk.DescriptorType.uniform_buffer,  
         .IMAGE_SAMPLER => vk.DescriptorType.combined_image_sampler,
     };
 }
 
-fn stage_to_vulkan_type(t: ShaderStage) vk.ShaderStageFlags {
-    return switch(t) {
-        .VERTEX_SHADER => vk.ShaderStageFlags{ .vertex_bit = true }, 
-        .FRAGMENT_SHADER => vk.ShaderStageFlags{ .fragment_bit = true},
-    };
-}
-
 fn create_element(binding: *const ShaderBindingLayoutElement, element: *anyopaque) ShaderBindingElement {
-    return switch(binding.binding_type) {
+    return switch(binding.type) {
         .UNIFORM_BUFFER => ShaderBindingElement{
             .UNIFORM_BUFFER = @ptrCast(@alignCast(element)),
         },
@@ -328,15 +315,16 @@ pub const VulkanShaderBindingLayout = struct {
     bindings: []const ShaderBindingLayoutElement,
     layout: vk.DescriptorSetLayout,
 
-    pub fn init(ctx: *const context.VulkanContext, bindings: []const ShaderBindingLayoutElement) VulkanShaderBindingLayout {
+    pub fn init(ctx: *const context.VulkanContext, bindings: []ShaderBindingLayoutElement) VulkanShaderBindingLayout {
         const vk_bindings = ctx.allocator.alloc(vk.DescriptorSetLayoutBinding, bindings.len) catch unreachable;
+        defer ctx.allocator.free(vk_bindings);
 
         for(bindings, 0..) |binding, i| {
             vk_bindings[i] = vk.DescriptorSetLayoutBinding{
                 .binding = binding.point,
                 .descriptor_count = 1,
-                .descriptor_type = binding_type_to_vulkan_type(binding.binding_type),
-                .stage_flags = stage_to_vulkan_type(binding.stage),
+                .descriptor_type = binding_type_to_vulkan_type(binding.type),
+                .stage_flags = .{ .vertex_bit = true, .fragment_bit = true },
                 .p_immutable_samplers = null,
             };
         }
@@ -357,40 +345,31 @@ pub const VulkanShaderBindingLayout = struct {
         };
     }
 
-    pub fn deinit(self: *const VulkanShaderBindingLayout) void {
-        self.ctx.logical_device.device.destroyDescriptorSetLayout(self.layout, null);
-    }
-};
-
-pub const VulkanShaderBindingSet = struct {
-    layout: vk.DescriptorSetLayout,
-    descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet,
-
-    pub fn init(ctx: *const context.VulkanContext, layout: *const VulkanShaderBindingLayout, bindings: []const CreateInfoShaderBindingElement) VulkanShaderBindingSet {
+    pub fn create(self: VulkanShaderBindingLayout, bindings: []const CreateInfoShaderBindingElement) VulkanShaderBindingSet {
         var layouts: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSetLayout = undefined;
         
         for(0..MAX_FRAMES_IN_FLIGHT) |i| {
-            layouts[i] = layout.layout;
+            layouts[i] = self.layout;
         }
 
         const allocInfo = vk.DescriptorSetAllocateInfo{
-            .descriptor_pool = ctx.descriptor_pool,
+            .descriptor_pool = self.ctx.descriptor_pool,
             .descriptor_set_count = MAX_FRAMES_IN_FLIGHT,
             .p_set_layouts = @ptrCast(&layouts[0]),
         };
 
         var descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet = undefined;
 
-        ctx.logical_device.device.allocateDescriptorSets(&allocInfo, @ptrCast(&descriptor_sets[0])) catch {
+        self.ctx.logical_device.device.allocateDescriptorSets(&allocInfo, @ptrCast(&descriptor_sets[0])) catch {
             log.fatal("Failed to allocate descriptor sets for UBO", .{});
         };
 
-        const writes = ctx.allocator.alloc(vk.WriteDescriptorSet, bindings.len * MAX_FRAMES_IN_FLIGHT) catch unreachable;
+        const writes = self.ctx.allocator.alloc(vk.WriteDescriptorSet, bindings.len * MAX_FRAMES_IN_FLIGHT) catch unreachable;
         var count: u32 = 0;
 
         for(bindings) |binding| {
-            for(layout.bindings) |lbinding| {
-                if(binding.point != lbinding.point) continue;
+            for(self.bindings) |lbinding| {
+                if(!std.mem.eql(u8, binding.point, lbinding.name)) continue;
                 for(0..MAX_FRAMES_IN_FLIGHT) |i| {
                     const element = create_element(&lbinding, binding.element);
                     switch(element) {
@@ -403,7 +382,7 @@ pub const VulkanShaderBindingSet = struct {
                             
                             const descriptor_write = vk.WriteDescriptorSet{
                                 .dst_set = descriptor_sets[i],
-                                .dst_binding = binding.point,
+                                .dst_binding = lbinding.point,
                                 .dst_array_element = 0,
                                 .descriptor_type = .uniform_buffer,
                                 .descriptor_count = 1,
@@ -424,7 +403,7 @@ pub const VulkanShaderBindingSet = struct {
 
                             const descriptor_write = vk.WriteDescriptorSet{
                                 .dst_set = descriptor_sets[i],
-                                .dst_binding = binding.point,
+                                .dst_binding = lbinding.point,
                                 .dst_array_element = 0,
                                 .descriptor_type = .combined_image_sampler,
                                 .descriptor_count = 1,
@@ -433,7 +412,7 @@ pub const VulkanShaderBindingSet = struct {
                                 .p_texel_buffer_view = undefined,
                             };
 
-                            log.debug("binding at {}", .{binding.point});
+                            log.debug("binding at {s}", .{binding.point});
 
                             writes[count] = descriptor_write;
                             count += 1;
@@ -443,13 +422,23 @@ pub const VulkanShaderBindingSet = struct {
                 }
             }
         }
-        ctx.logical_device.device.updateDescriptorSets(count, @ptrCast(writes.ptr), 0, null);
+        self.ctx.logical_device.device.updateDescriptorSets(count, @ptrCast(writes.ptr), 0, null);
         log.debug("Wrote {} descriptor sets", .{count});
-        
-        
+
         return VulkanShaderBindingSet{
-            .layout = layout.layout,
+            .layout = self.layout,
             .descriptor_sets = descriptor_sets,
         };
     }
+        
+
+    pub fn deinit(self: *const VulkanShaderBindingLayout) void {
+        self.ctx.logical_device.device.destroyDescriptorSetLayout(self.layout, null);
+        self.ctx.allocator.free(self.bindings);
+    }
+};
+
+pub const VulkanShaderBindingSet = struct {
+    layout: vk.DescriptorSetLayout,
+    descriptor_sets: [MAX_FRAMES_IN_FLIGHT] vk.DescriptorSet,
 };

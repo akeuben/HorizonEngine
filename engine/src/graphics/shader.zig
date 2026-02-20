@@ -3,6 +3,7 @@ const context = @import("context.zig");
 const opengl = @import("opengl/shader.zig");
 const vulkan = @import("vulkan/shader.zig");
 const log = @import("../utils/log.zig");
+const slang = @import("slang");
 const BufferLayout = @import("type.zig").BufferLayout;
 const RenderTarget = @import("target.zig").RenderTarget;
 const UniformBuffer = @import("buffer.zig").UniformBuffer;
@@ -10,6 +11,7 @@ const TextureSampler = @import("texture.zig").TextureSampler;
 
 /// An error that occurs while compiling or linking a shader pipeline.
 pub const ShaderError = error{
+    ReadError,
     /// An individual shader stage failed to compile
     CompilationError,
     /// The pipeline failed to link all shader stages
@@ -17,106 +19,28 @@ pub const ShaderError = error{
 };
 
 // TODO: Replace with an asset manager
-fn read_shader_file(allocator: std.mem.Allocator, comptime path: []const u8) ![]const u8 {
-    var file = std.fs.cwd().openFile("assets/" ++ path, .{}) catch {
+fn read_shader_file(allocator: std.mem.Allocator, path: []const u8) ![:0]const u8 {
+    var file = std.fs.cwd().openFile(path, .{}) catch {
         const p = try std.fs.cwd().realpathAlloc(allocator, ".");
         defer allocator.free(p);
         
         log.err("Failed to open shader: {s}", .{p});
-        return undefined;
+        return ShaderError.ReadError;
     };
     defer file.close();
 
-    const data = try file.readToEndAlloc(allocator, 65536);
-    log.debug("Loaded shader file of size: {}", .{data.len});
-    return data;
+    const buffer: []u8 = try allocator.alloc(u8, 65536);
+    defer allocator.free(buffer);
+    var fileReader = file.reader(buffer);
+
+    const reader = &fileReader.interface;
+
+    const data = try reader.allocRemaining(allocator, .unlimited);
+
+    const dataWithSentinal = try std.mem.concatWithSentinel(allocator, u8, &.{data}, 0);
+
+    return dataWithSentinal;
 }
-
-/// A vertex shader
-pub const VertexShader = union(context.API) {
-    OPEN_GL: opengl.OpenGLVertexShader,
-    VULKAN: vulkan.VulkanVertexShader,
-    NONE: void,
-
-    /// Create a `VertexShader`
-    ///
-    /// **Parameter** `ctx`: The rendering context to create the shader for.
-    /// **Parameter** `name`: The name of the shader file to read.
-    /// **Returns** The created shader
-    /// **Error** `CompilationError` the shader failed to compile.
-    pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!VertexShader {
-        const shader_data = read_shader_file(ctx.getAllocator(), name ++ ".vert") catch return ShaderError.CompilationError;
-        defer ctx.getAllocator().free(shader_data);
-
-        return switch (ctx.*) {
-            .OPEN_GL => VertexShader{
-                .OPEN_GL = opengl.OpenGLVertexShader.init(ctx.OPEN_GL, shader_data) catch {
-                    return ShaderError.CompilationError;
-                },
-            },
-            .VULKAN => VertexShader{
-                .VULKAN = vulkan.VulkanVertexShader.init(ctx.VULKAN, shader_data) catch {
-                    return ShaderError.CompilationError;
-                },
-            },
-            .NONE => VertexShader{
-                .NONE = {},
-            },
-        };
-    }
-
-    /// Destroy the given shader
-    pub fn deinit(self: VertexShader) void {
-        switch (self) {
-            .OPEN_GL => self.OPEN_GL.deinit(),
-            .VULKAN => self.VULKAN.deinit(),
-            inline else => log.not_implemented("VertexShader::deinit", self),
-        }
-    }
-};
-
-/// A fragment shader
-pub const FragmentShader = union(context.API) {
-    OPEN_GL: opengl.OpenGLFragmentShader,
-    VULKAN: vulkan.VulkanFragmentShader,
-    NONE: void,
-
-    /// Create a `FragmentShader`
-    ///
-    /// **Parameter** `ctx`: The rendering context to create the shader for.
-    /// **Parameter** `name`: The name of the shader file to read.
-    /// **Returns** The created shader
-    /// **Error** `CompilationError`: the shader failed to compile.
-    pub fn init(ctx: *const context.Context, comptime name: []const u8) ShaderError!FragmentShader {
-        const shader_data = read_shader_file(ctx.getAllocator(), name ++ ".frag") catch return ShaderError.CompilationError;
-        defer ctx.getAllocator().free(shader_data);
-
-        return switch (ctx.*) {
-            .OPEN_GL => FragmentShader{
-                .OPEN_GL = opengl.OpenGLFragmentShader.init(ctx.OPEN_GL, shader_data) catch {
-                    return ShaderError.CompilationError;
-                },
-            },
-            .VULKAN => FragmentShader{
-                .VULKAN = vulkan.VulkanFragmentShader.init(ctx.VULKAN, shader_data) catch {
-                    return ShaderError.CompilationError;
-                },
-            },
-            .NONE => FragmentShader{
-                .NONE = {},
-            },
-        };
-    }
-
-    /// Destroy the given shader
-    pub fn deinit(self: FragmentShader) void {
-        switch (self) {
-            .OPEN_GL => self.OPEN_GL.deinit(),
-            .VULKAN => self.VULKAN.deinit(),
-            inline else => log.not_implemented("FragmentShader::deinit", self),
-        }
-    }
-};
 
 /// A pipeline consisting of a vertex shader and a fragment shader
 pub const Pipeline = union(context.API) {
@@ -135,20 +59,39 @@ pub const Pipeline = union(context.API) {
     /// **Error** `LinkingError`: The pipeline failed to link.
     pub fn init(
         ctx: *const context.Context,
-        vertex_shader: *const VertexShader,
-        fragment_shader: *const FragmentShader,
+        name: []const u8,
         buffer_layout: *const BufferLayout,
-        bindings: *const ShaderBindingSet,
     ) ShaderError!Pipeline {
+        const allocator = ctx.getAllocator();
+        const path = std.mem.concat(allocator, u8, &.{
+            "assets/",
+            name,
+            ".slang"
+        }) catch unreachable;
+        defer allocator.free(path);
+        const source = read_shader_file(allocator, path) catch return ShaderError.CompilationError;
+        defer allocator.free(source);
         return switch (ctx.*) {
             .OPEN_GL => Pipeline{
-                .OPEN_GL = try opengl.OpenGLPipeline.init(&vertex_shader.OPEN_GL, &fragment_shader.OPEN_GL, buffer_layout, &bindings.OPEN_GL),
+                .NONE = {},
             },
             .VULKAN => Pipeline{
-                .VULKAN = try vulkan.VulkanPipeline.init(ctx.VULKAN, vertex_shader.VULKAN, fragment_shader.VULKAN, buffer_layout, &bindings.VULKAN),
+                //.VULKAN = try vulkan.VulkanPipeline.init(name, buffer_layout, &bindings.VULKAN),
+                .VULKAN = vulkan.VulkanPipeline.init(ctx.VULKAN, source, buffer_layout) catch unreachable,
             },
             .NONE => Pipeline{
                 .NONE = {},
+            },
+        };
+    }
+
+    pub fn getLayout(self: Pipeline) ShaderBindingLayout {
+        return switch(self) {
+            .VULKAN => .{
+                .VULKAN = self.VULKAN.getLayout(),
+            },
+            else => .{
+                .NONE = log.not_implemented("Pipeline::getLayout", self)
             },
         };
     }
@@ -163,91 +106,51 @@ pub const Pipeline = union(context.API) {
     }
 };
 
-pub const ShaderBindingType = enum {
-    UNIFORM_BUFFER,
-    IMAGE_SAMPLER,
+pub const ShaderBindingLayoutElementType = enum {
+    UNIFORM_BUFFER, IMAGE_SAMPLER
 };
 
-pub const ShaderStage = enum {
-    VERTEX_SHADER,
-    FRAGMENT_SHADER,
+pub const ShaderBindingLayoutElement = struct {
+    name: []const u8,
+    type: ShaderBindingLayoutElementType,
+    point: u32,
 };
 
-pub const ShaderBindingElement = union(ShaderBindingType) {
+pub const ShaderBindingLayout = union(context.API) {
+    OPEN_GL: void,
+    VULKAN: vulkan.VulkanShaderBindingLayout,
+    NONE: void,
+
+    pub fn create(self: ShaderBindingLayout, elements: []const CreateInfoShaderBindingElement) ShaderBindingSet {
+        return switch (self) {
+            .VULKAN => .{
+                .VULKAN = self.VULKAN.create(elements),
+            },
+            else => .{
+                .NONE = log.not_implemented("ShaderBindingLayout::create", self),
+            },
+        };
+    }
+};
+
+pub const ShaderBindingElement = union(ShaderBindingLayoutElementType) {
     UNIFORM_BUFFER: *UniformBuffer,
     IMAGE_SAMPLER: *TextureSampler,
 };
 
-pub const ShaderBindingLayoutElement = struct {
-    binding_type: ShaderBindingType,
-    point: u32,
-    stage: ShaderStage,
-};
-
-pub const BoundShaderBinding = struct {
-    element: ShaderBindingElement,
-    layout: ShaderBindingLayoutElement,
-};
-
 pub const CreateInfoShaderBindingElement = struct {
     element: *anyopaque, 
-    point: u32
+    point: []const u8
 };
 
 pub const ShaderBindingSet = union(context.API) {
-    OPEN_GL: opengl.OpenGLShaderBindingSet,
+    OPEN_GL: void,
     VULKAN: vulkan.VulkanShaderBindingSet,
     NONE: void,
 
-    fn init(ctx: *const context.Context, layout: *const ShaderBindingLayout, elements: []const CreateInfoShaderBindingElement) ShaderBindingSet {
-        return switch(ctx.*) {
-            .OPEN_GL => .{
-                .OPEN_GL = opengl.OpenGLShaderBindingSet.init(ctx.OPEN_GL, &layout.OPEN_GL, elements),
-            },
-            .VULKAN => .{
-                .VULKAN = vulkan.VulkanShaderBindingSet.init(ctx.VULKAN, &layout.VULKAN, elements),
-            },
-            .NONE => .{
-                .NONE = log.not_implemented("ShaderBindingSet::init", ctx.*),
-            },
-        };
-    }
-
     pub fn deinit(self: *const ShaderBindingSet) void {
         switch(self.*) {
-            .OPEN_GL => self.OPEN_GL.deinit(),
             inline else => log.not_implemented("ShaderBindingSet::deinit", self.*),
-        }
-    }
-};
-
-pub const ShaderBindingLayout = union(context.API) {
-    OPEN_GL: opengl.OpenGLShaderBindingLayout,
-    VULKAN: vulkan.VulkanShaderBindingLayout,
-    NONE: void,
-
-    pub fn init(ctx: *const context.Context, bindings: []const ShaderBindingLayoutElement) ShaderBindingLayout {
-        return switch(ctx.*) {
-            .OPEN_GL => .{
-                .OPEN_GL = opengl.OpenGLShaderBindingLayout.init(ctx.OPEN_GL, bindings),
-            },
-            .VULKAN => .{
-                .VULKAN = vulkan.VulkanShaderBindingLayout.init(ctx.VULKAN, bindings),
-            },
-            .NONE => .{
-                .NONE = log.not_implemented("ShaderBindingSet::init", ctx.*),
-            },
-        };
-    }
-
-    pub fn bind(self: *const ShaderBindingLayout, ctx: *const context.Context, bindings: []const CreateInfoShaderBindingElement) ShaderBindingSet {
-        return ShaderBindingSet.init(ctx, self, bindings);
-    }
-
-    pub fn deinit(self: *const ShaderBindingLayout) void {
-        switch(self.*) {
-            .VULKAN => self.VULKAN.deinit(),
-            inline else => log.not_implemented("ShaderBindingLayout::deinit", self.*),
         }
     }
 };

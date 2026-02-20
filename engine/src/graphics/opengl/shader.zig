@@ -6,43 +6,24 @@ const ShaderStage = _shader.ShaderStage;
 const log = @import("../../utils/log.zig");
 const BufferLayout = @import("../type.zig").BufferLayout;
 const Context = @import("context.zig").OpenGLContext;
-const BoundShaderBinding = @import("../shader.zig").BoundShaderBinding;
 const CreateInfoShaderBindingElement = @import("../shader.zig").CreateInfoShaderBindingElement;
 const ShaderBindingLayout = @import("../shader.zig").ShaderBindingLayout;
 const ShaderBindingElement = @import("../shader.zig").ShaderBindingElement;
 
-const shaderc = @import("shaderc");
+const Slang = @import("../slang.zig").SlangSession(.glsl, "glsl_330");
 
-var compiler: shaderc.Compiler = undefined;
-var initialized = false;
-
-pub const OpenGLVertexShader = struct {
+const OpenGLShader = struct {
     shader: u32,
 
-    pub fn init(ctx: *const Context, sourceCode: []const u8) ShaderError!OpenGLVertexShader {
-        if(!initialized) {
-            compiler = shaderc.Compiler.initialize();
-            initialized = true;
-        }
-        const options = shaderc.CompileOptions.initialize();
-        defer options.release();
-        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
-        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
-        options.setVersion(shaderc.Env.Target.OpenGL, shaderc.Env.VulkanVersion.@"gl45");
-        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Vertex, "main", options) catch |e| {
-            log.err("Failed to compile vertex shader: {}", .{e});
-            return ShaderError.CompilationError;
-        };
-        if(result.getCompilationStatus() == .Success) {
-            log.debug("Compiled (1) vertex shader.", .{});
-        } else {
-            log.err("Failed to compile vertex shader: {s}", .{result.getErrorMessage()});
-            return ShaderError.CompilationError;
-        }
-        const data = result.getBytes();
-        const shader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
-        gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);
+    fn init(sourceCode: []const u8, shaderType: c_uint) ShaderError!OpenGLShader {
+        const shader = gl.createShader(shaderType);
+
+        const strings = [_][*]const u8{sourceCode.ptr};
+        const lengths = [_]gl.GLint{@intCast(sourceCode.len)};
+
+        log.debug("Shader source: {s}", .{sourceCode});
+        
+        gl.shaderSource(shader, 1, @ptrCast(&strings), @ptrCast(&lengths));
 
         var success: i32 = 0;
         var error_log: [512]u8 = undefined;
@@ -51,68 +32,37 @@ pub const OpenGLVertexShader = struct {
         if (success != gl.TRUE) {
             gl.getShaderInfoLog(shader, 512, null, &error_log[0]);
             log.err("GL: Failed to compile vertex shader: {s}", .{error_log});
-            //return ShaderError.CompilationError;
-        }
-
-        return OpenGLVertexShader{ .shader = shader };
-    }
-
-    pub fn deinit(self: OpenGLVertexShader) void {
-        gl.deleteShader(self.shader);
-    }
-};
-
-pub const OpenGLFragmentShader = struct {
-    shader: u32,
-
-    pub fn init(ctx: *const Context, sourceCode: []const u8) ShaderError!OpenGLFragmentShader {
-        if(!initialized) {
-            compiler = shaderc.Compiler.initialize();
-            initialized = true;
-        }
-        const options = shaderc.CompileOptions.initialize();
-        defer options.release();
-        options.setOptimizationLevel(shaderc.OptimizationLevel.Zero);
-        options.setSourceLanguage(shaderc.SourceLanguage.GLSL);
-        options.setVersion(shaderc.Env.Target.OpenGL, shaderc.Env.VulkanVersion.@"gl45");
-        const result = compiler.compileIntoSpv(ctx.allocator, sourceCode, shaderc.ShaderKind.Fragment, "main", options) catch |e| {
-            log.err("Failed to compile fragment shader: {}", .{e});
-            return ShaderError.CompilationError;
-        };
-        if(result.getCompilationStatus() == .Success) {
-            log.debug("Compiled (1) fragment shader.", .{});
-        } else {
-            log.err("Failed to compile fragment shader: {s}", .{result.getErrorMessage()});
             return ShaderError.CompilationError;
         }
-        const data = result.getBytes();
-        const shader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderBinary(1, @ptrCast(&shader), gl.GL_ARB_gl_spirv.SHADER_BINARY_FORMAT_SPIR_V_ARB, @ptrCast(data.ptr), @intCast(data.len));
-        gl.GL_ARB_gl_spirv.specializeShaderARB(shader, "main", 0, 0, 0);
 
-        var success: i32 = 0;
-        var error_log: [512]u8 = undefined;
-        gl.getShaderiv(shader, gl.COMPILE_STATUS, &success);
-
-        if (success != gl.TRUE) {
-            gl.getShaderInfoLog(shader, 512, null, &error_log[0]);
-            log.err("GL: Failed to compile fragment shader: {s}", .{error_log});
-            //return ShaderError.CompilationError;
-        }
-
-        return OpenGLFragmentShader{ .shader = shader };
+        return OpenGLShader{ .shader = shader };
     }
 
-    pub fn deinit(self: OpenGLFragmentShader) void {
+    fn deinit(self: OpenGLShader) void {
         gl.deleteShader(self.shader);
     }
 };
 
 pub const OpenGLPipeline = struct {
-    program: u32,
 
-    pub fn init(vertex_shader: *const OpenGLVertexShader, fragment_shader: *const OpenGLFragmentShader, _: *const BufferLayout, _: *const OpenGLShaderBindingSet) ShaderError!OpenGLPipeline {
+    program: u32,
+    module: *Slang.Module,
+
+    pub fn init(source: [:0]const u8, _: *const BufferLayout) ShaderError!OpenGLPipeline {
+        const session = Slang.getSession() catch return ShaderError.CompilationError;
+        const module = session.compileProgram("shader", source, &[_][*:0]const u8 {"vertex", "fragment"}) catch return ShaderError.CompilationError;
+
+        const vertexSource = module.getEntryPointCode(0, 0, null) catch return ShaderError.LinkingError;
+        const fragmentSource = module.getEntryPointCode(1, 0, null) catch return ShaderError.LinkingError;
+        
         const program: u32 = gl.createProgram();
+
+        const vertex_shader = try OpenGLShader.init(vertexSource.getBuffer(), gl.VERTEX_SHADER);
+        defer vertex_shader.deinit();
+        const fragment_shader = try OpenGLShader.init(fragmentSource.getBuffer(), gl.FRAGMENT_SHADER);
+        defer fragment_shader.deinit();
+
+        
         gl.attachShader(program, vertex_shader.shader);
         gl.attachShader(program, fragment_shader.shader);
         gl.linkProgram(program);
@@ -129,6 +79,7 @@ pub const OpenGLPipeline = struct {
 
         return OpenGLPipeline{
             .program = program,
+            .module = undefined,
         };
     }
 
@@ -147,51 +98,3 @@ fn create_element(binding: *const ShaderBindingLayoutElement, element: *anyopaqu
         }
     };
 }
-
-pub const OpenGLShaderBindingSet = struct {
-    ctx: *const Context,
-    bindings: []const BoundShaderBinding,
-    count: u32,
-
-    pub fn init(ctx: *const Context, layout: *const OpenGLShaderBindingLayout, elements: []const CreateInfoShaderBindingElement) OpenGLShaderBindingSet {
-        const bindings = ctx.allocator.alloc(BoundShaderBinding, elements.len) catch unreachable;
-        var i: u32 = 0;
-        for(elements) |element| {
-            var b: ?BoundShaderBinding = null;
-            for(layout.bindings) |binding| {
-                if(binding.point == element.point) {
-                    b = BoundShaderBinding{
-                        .element = create_element(&binding, element.element),
-                        .layout = binding,
-                    };
-                }
-            }
-            if(b == null) {
-                log.warn("Tried to bind an element that does not have a binding point in the layout, or is of the incorrect type at point {}", .{element.point});
-                continue;
-            }
-            bindings[i] = b.?;
-            i += 1;
-        }
-
-        return OpenGLShaderBindingSet{
-            .ctx = ctx,
-            .count = i,
-            .bindings = bindings,
-        };
-    }
-
-    pub fn deinit(self: *const OpenGLShaderBindingSet) void {
-        self.ctx.allocator.free(self.bindings);
-    }
-};
-
-pub const OpenGLShaderBindingLayout = struct {
-    bindings: []const ShaderBindingLayoutElement,
-
-    pub fn init(_: *const Context, bindings: []const ShaderBindingLayoutElement) OpenGLShaderBindingLayout {
-        return OpenGLShaderBindingLayout {
-            .bindings = bindings,
-        };
-    }
-};
