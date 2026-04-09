@@ -36,6 +36,7 @@ fn read_shader_file(allocator: std.mem.Allocator, path: []const u8) ![:0]const u
     const reader = &fileReader.interface;
 
     const data = try reader.allocRemaining(allocator, .unlimited);
+    defer allocator.free(data);
 
     const dataWithSentinal = try std.mem.concatWithSentinel(allocator, u8, &.{data}, 0);
 

@@ -16,8 +16,10 @@ pub const VulkanLayer = struct {
 
 pub fn get_supported_instance_extensions(ctx: *const context.VulkanContext, requested: []const VulkanExtension) ![]const ?[*:0]const u8 {
     const supported_extension_names = try ctx.vkb.enumerateInstanceExtensionPropertiesAlloc(null, ctx.allocator);
+    defer ctx.allocator.free(supported_extension_names);
 
     var supported_extensions = try ctx.allocator.alloc([*:0]const u8, supported_extension_names.len);
+    defer ctx.allocator.free(supported_extensions);
 
     // Create new list of supported extensions
     var actual_extension_count: usize = 0;
@@ -52,8 +54,10 @@ pub fn get_supported_instance_extensions(ctx: *const context.VulkanContext, requ
 
 pub fn get_supported_device_extensions(ctx: *const context.VulkanContext, physical_device: vk.PhysicalDevice, requested: []const VulkanExtension) ![]const ?[*:0]const u8 {
     const supported_extension_names = try ctx.instance.instance.enumerateDeviceExtensionPropertiesAlloc(physical_device, null, ctx.allocator);
+    defer ctx.allocator.free(supported_extension_names);
 
     var supported_extensions = try ctx.allocator.alloc([*:0]const u8, supported_extension_names.len);
+    defer ctx.allocator.free(supported_extensions);
 
     // Create new list of supported extensions
     var actual_extension_count: usize = 0;
@@ -88,6 +92,7 @@ pub fn get_supported_device_extensions(ctx: *const context.VulkanContext, physic
 
 pub fn get_supported_layers(ctx: *const context.VulkanContext, requested: []const VulkanLayer) ![]const ?[*:0]const u8 {
     const supported_layer_names = try ctx.vkb.enumerateInstanceLayerPropertiesAlloc(ctx.allocator);
+    defer ctx.allocator.free(supported_layer_names);
 
     var supported_layers = try ctx.allocator.alloc([*:0]const u8, supported_layer_names.len);
     defer ctx.allocator.free(supported_layers);

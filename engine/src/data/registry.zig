@@ -340,7 +340,7 @@ pub const RegistryBase = struct {
 
         var read_buf: [1024]u8 = undefined;
         var file_reader = f.reader(&read_buf);
-        const reader = &file_reader.interface; // <── Important!
+        const reader = &file_reader.interface;
 
         var content = std.Io.Writer.Allocating.init(allocator.*);
         defer content.deinit();

@@ -68,5 +68,6 @@ pub const Instance = struct {
     pub fn deinit(self: Instance) void {
         if (self.debug_messenger != vk.DebugUtilsMessengerEXT.null_handle) self.instance.destroyDebugUtilsMessengerEXT(self.debug_messenger.?, null);
         self.instance.destroyInstance(null);
+        self.allocator.destroy(self.vki);
     }
 };

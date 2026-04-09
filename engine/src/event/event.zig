@@ -38,20 +38,19 @@ pub fn init_handler_custom(comptime T: anytype, comptime E: anytype, handler: *c
 pub const EventNode = struct {
     allocator: std.mem.Allocator,
     custom_parameter: ?*anyopaque,
-    children: std.ArrayList(*const EventNode),
-    parent: ?*const EventNode,
+    children: std.ArrayList(*EventNode),
+    parent: ?*EventNode,
     handlers: []const EventHandler,
 
-    pub fn init(allocator: std.mem.Allocator, custom_parameter: ?*anyopaque, handlers: []const EventHandler) EventNode {
+    pub fn init(allocator: std.mem.Allocator, custom_parameter: ?*anyopaque, handlers: []const EventHandler) *EventNode {
+        const self = allocator.create(@This()) catch unreachable;
         const handlers_copied = allocator.alloc(EventHandler, handlers.len) catch unreachable;
         @memcpy(handlers_copied, handlers);
-        const self = EventNode{
-            .allocator = allocator,
-            .custom_parameter = custom_parameter,
-            .children = std.ArrayList(*const EventNode).initCapacity(allocator, 0) catch unreachable,
-            .handlers = handlers_copied,
-            .parent = null,
-        };
+        self.allocator = allocator;
+        self.custom_parameter = custom_parameter;
+        self.children = std.ArrayList(*EventNode).initCapacity(allocator, 0) catch unreachable;
+        self.handlers = handlers_copied;
+        self.parent = null;
 
         return self;
     }
@@ -70,8 +69,8 @@ pub const EventNode = struct {
             }
         }
 
-        if(to_remove) {
-            self.children.swapRemove(to_remove);
+        if(to_remove) |remove| {
+            _ = self.children.swapRemove(remove);
             child.parent = null;
         }
     }
@@ -113,5 +112,12 @@ pub const EventNode = struct {
         }
 
         return self.handle_event(E, event);
+    }
+
+    pub fn deinit(self: *EventNode) void {
+        log.debug("Deinit event node with {} handlers and {} children", .{self.handlers.len, self.children.items.len});
+        self.allocator.free(self.handlers);
+        self.children.deinit(self.allocator);
+        self.allocator.destroy(self);
     }
 };

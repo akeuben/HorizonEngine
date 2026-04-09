@@ -104,7 +104,7 @@ pub const X11Window = struct {
     gl_context: c_glx.GLXContext,
     window_attributes: c.XWindowAttributes,
     pending_exit: bool,
-    node: event.EventNode,
+    node: *event.EventNode,
     width: i32,
     height: i32,
 
@@ -225,8 +225,10 @@ pub const X11Window = struct {
         return self;
     }
 
-    pub fn deinit() void {
-        x.XCloseDisplay(display);
+    pub fn deinit(self: *X11Window) void {
+        _ = x.XCloseDisplay(display);
+        self.context.getAllocator().destroy(self);
+        self.node.deinit();
     }
 
     pub fn update(window: *X11Window) void {
@@ -270,7 +272,7 @@ pub const X11Window = struct {
     }
 
     pub fn get_event_node(self: *X11Window) *event.EventNode {
-        return &self.node;
+        return self.node;
     }
 
     pub fn start_frame(self: X11Window) void {

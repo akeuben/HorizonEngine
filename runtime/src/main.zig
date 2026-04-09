@@ -1,4 +1,5 @@
 const std = @import("std");
+const mode = @import("builtin").mode;
 
 const engine = @import("engine");
 
@@ -96,19 +97,29 @@ pub fn main_old() !void {
 }
 
 pub fn main() !void {
+    
     var gpa = std.heap.DebugAllocator(.{}){};
     const allocator = gpa.allocator();
-    log.set_level(.DEBUG);
+
+    log.set_level(switch(mode) {
+        .Debug => .DEBUG,
+        else => .INFO,
+    });
+    defer _ = gpa.detectLeaks();
 
     var val: u32 = 5129;
 
     var root_event_node = EventNode.init(allocator, &val, &.{
     });
+    defer root_event_node.deinit();
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
     var context: graphics.Context = graphics.Context.init_vulkan(allocator, .{ .use_debug = use_debug });
+    defer context.deinit();
+
+    log.debug("Vulkan initialized", .{});
 
     const context_node: ?*EventNode = context.get_event_node();
     if(context_node != null) {
@@ -116,6 +127,7 @@ pub fn main() !void {
     }
 
     var window = Window.init(&context, allocator);
+    defer window.deinit();
     context.load(&window);
 
     root_event_node.add_child(window.get_event_node());
@@ -125,7 +137,7 @@ pub fn main() !void {
     var cube_vbuffer = try graphics.VertexBuffer.init(&context, Vertex, cube_vertices);
     defer cube_vbuffer.deinit();
 
-    const image = try stb.StbImage.load_png("assets/Banana-Single.jpg");
+    const image = try stb.StbImage.load_png("assets/texture.jpg");
     defer image.deinit();
 
     const texture = graphics.Texture.init(&context, &image);
@@ -185,5 +197,9 @@ pub fn main() !void {
         window.update();
 
         last_frame_time = current_frame_time;
+
+        if(rot < -5) break;
+        log.debug("Rot: {}", .{rot});
     }
+
 }

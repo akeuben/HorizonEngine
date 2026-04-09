@@ -60,6 +60,7 @@ pub const PhysicalDevice = struct {
             log.warn("Failed to find supported extensions for device {s}. Assigning a score of 0", .{properties.device_name});
             return 0;
         };
+        defer ctx.allocator.free(supported_extensions);
 
         if (supported_extensions.len != device_extensions.len) {
             log.warn("Device {s} does not support required extensions. Assigning a score of 0", .{properties.device_name});
@@ -132,14 +133,17 @@ pub const LogicalDevice = struct {
         }
 
         const queue_create_info = try queue_create_infos.toOwnedSlice(ctx.allocator);
+        defer ctx.allocator.free(queue_create_info);
 
         const physical_device_features = vk.PhysicalDeviceFeatures{
             .sampler_anisotropy = .true,
         };
 
         const supported_layers = try extension.get_supported_layers(ctx, layers);
+        defer ctx.allocator.free(supported_layers);
         const supported_extensions = try extension.get_supported_device_extensions(ctx, physical_device.device, extensions);
-
+        defer ctx.allocator.free(supported_extensions);
+        
         const dynamic_rendering_feature = vk.PhysicalDeviceDynamicRenderingFeatures {
             .dynamic_rendering = .true,
         };
@@ -158,6 +162,7 @@ pub const LogicalDevice = struct {
         const vk_device = try ctx.instance.instance.createDevice(physical_device.device, &create_info, null);
 
         const vkd = try allocator.create(context.DeviceDispatch);
+        errdefer allocator.destroy(vkd);
         vkd.* = context.DeviceDispatch.load(vk_device, ctx.instance.instance.wrapper.dispatch.vkGetDeviceProcAddr.?);
         const device = context.Device.init(vk_device, vkd);
 
@@ -168,7 +173,7 @@ pub const LogicalDevice = struct {
         };
     }
 
-    pub fn deinit(self: LogicalDevice) void {
+    pub fn deinit(self: *LogicalDevice) void {
         self.device.destroyDevice(null);
         self.allocator.destroy(self.vkd);
     }

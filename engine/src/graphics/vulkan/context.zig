@@ -26,7 +26,7 @@ pub const Device = vk.DeviceProxy;
 pub const VulkanContext = struct {
     loaded: bool = false,
     allocator: std.mem.Allocator,
-    event_node: event.EventNode,
+    event_node: *event.EventNode,
 
     creation_options: ContextCreationOptions,
 
@@ -97,8 +97,11 @@ pub const VulkanContext = struct {
         if (self.creation_options.use_debug) layers.appendSlice(self.allocator, validation.debug_required_layers) catch {};
 
         const instance_extension_slice: []VulkanExtension = instance_extensions.toOwnedSlice(self.allocator) catch &.{};
+        defer self.allocator.free(instance_extension_slice);
         const device_extension_slice: []VulkanExtension = device_extensions.toOwnedSlice(self.allocator) catch &.{};
+        defer self.allocator.free(device_extension_slice);
         const layer_slice: []VulkanLayer = layers.toOwnedSlice(self.allocator) catch &.{};
+        defer self.allocator.free(layer_slice);
 
         self.instance = instance.Instance.init(self, instance_extension_slice, layer_slice, "Test App", self.allocator) catch {
             log.fatal("Failed to initialize vulkan", .{});
@@ -172,7 +175,7 @@ pub const VulkanContext = struct {
     }
 
     pub fn get_event_node(self: *VulkanContext) ?*event.EventNode {
-        return &self.event_node;
+        return self.event_node;
     }
 
     pub fn on_window_resize(self: ?*VulkanContext, e: *const event.window.WindowResizeEvent, _: event.EventResult) event.EventResult {
@@ -194,6 +197,7 @@ pub const VulkanContext = struct {
 
         self.instance.deinit();
 
+        self.event_node.deinit();
         self.allocator.destroy(self);
     }
 

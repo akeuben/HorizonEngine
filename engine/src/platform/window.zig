@@ -113,4 +113,10 @@ pub const Window = union(enum) {
             inline else => |case| case.create_vk_surface(ctx),
         };
     }
+
+    pub fn deinit(self: *Window) void {
+        return switch(self.*) {
+            inline else => |case| case.deinit(),
+        };
+    }
 };

@@ -278,6 +278,7 @@ pub const VulkanPipeline = struct {
         self.context.logical_device.device.deviceWaitIdle() catch {};
         self.context.logical_device.device.destroyPipeline(self.pipeline, null);
         self.context.logical_device.device.destroyPipelineLayout(self.layout, null);
+        self.bindingsLayout.deinit();
     }
 };
 
@@ -365,6 +366,7 @@ pub const VulkanShaderBindingLayout = struct {
         };
 
         const writes = self.ctx.allocator.alloc(vk.WriteDescriptorSet, bindings.len * MAX_FRAMES_IN_FLIGHT) catch unreachable;
+        defer self.ctx.allocator.free(writes);
         var count: u32 = 0;
 
         for(bindings) |binding| {
